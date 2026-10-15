@@ -1,0 +1,147 @@
+<!-- templates/base.html — общий каркас: шапка, меню, поисковик, подвал -->
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="author" content="{{ site.developer }}">
+  {% block meta %}
+    <meta name="description" content="Официальный сайт городской библиотеки: новости, электронный каталог, услуги читателям.">
+    <meta name="keywords" content="библиотека, книги, читатели, Обнинск, новости библиотеки, электронный каталог">
+  {% endblock %}
+  <title>{% block title %}{{ site.name }} — {{ site.city }}{% endblock %}</title>
+
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+  <link href="{{ url_for('static', filename='app.css') }}" rel="stylesheet">
+</head>
+<body class="d-flex flex-column min-vh-100">
+
+<!-- ======================= ШАПКА (логотип организации) ======================= -->
+<header class="site-header">
+  <div class="container d-flex align-items-center gap-3 py-3">
+    <a href="{{ url_for('index') }}" class="d-flex align-items-center gap-3 text-decoration-none">
+      <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="Логотип библиотеки" width="56" height="56">
+      <span class="header-brand">
+        <span class="header-title">{{ site.name }}</span><br>
+        <small class="header-subtitle">{{ site.city }} · читай, узнавай, общайся</small>
+      </span>
+    </a>
+    <div class="ms-auto text-end d-none d-md-block">
+      <div class="header-phone">☎ {{ site.phone }}</div>
+      <div class="header-hours small">Пн–Пт 9:00–21:00, Сб–Вс 10:00–18:00</div>
+    </div>
+  </div>
+</header>
+
+<!-- ======================= ГОРИЗОНТАЛЬНОЕ МЕНЮ ======================= -->
+<nav class="navbar navbar-expand-lg main-menu py-0">
+  <div class="container">
+    <button class="navbar-toggler text-white border-0" type="button" data-bs-toggle="collapse"
+            data-bs-target="#mainNav" aria-label="Меню">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="mainNav">
+      <ul class="navbar-nav w-100">
+        <li class="nav-item">
+          <a class="nav-link menu-link {{ 'active' if active_path == '/' }}" href="{{ url_for('index') }}">Главная</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link menu-link {{ 'active' if active_path == '/about' }}" href="{{ url_for('about') }}">О библиотеке</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link menu-link {{ 'active' if active_path == '/news' }}" href="{{ url_for('news') }}">Новости</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link menu-link {{ 'active' if active_path == '/achievements' }}" href="{{ url_for('achievements') }}">Достижения</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link menu-link {{ 'active' if active_path == '/links' }}" href="{{ url_for('links') }}">Ссылки</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link menu-link {{ 'active' if active_path == '/contacts' }}" href="{{ url_for('contacts') }}">Контакты</a>
+        </li>
+        <li class="nav-item dropdown">
+          <a class="nav-link menu-link dropdown-toggle {{ 'active' if active_path.startswith('/db') }}" href="#"
+             data-bs-toggle="dropdown">Приложение к БД</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{{ url_for('db_app') }}">Выдача книг</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('db_search', mode='one', entity='readers') }}">Поиск по БД</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('db_admin') }}">Администрирование</a></li>
+          </ul>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link menu-link {{ 'active' if active_path == '/xml' }}" href="{{ url_for('xml_info') }}">XML</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link menu-link {{ 'active' if active_path == '/services' }}" href="{{ url_for('services') }}">Сервисы</a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
+
+<!-- ======================= ПОИСКОВИК ПО САЙТУ (под меню) ======================= -->
+<div class="search-strip">
+  <div class="container py-2">
+    <form class="d-flex site-search-form" method="get" action="{{ url_for('site_search') }}" role="search">
+      <input class="form-control" type="search" name="q"
+             placeholder="Поиск по сайту: введите слова (например: выдача, новости, валюта)…"
+             value="{{ request.args.get('q', '') }}" aria-label="Поиск по сайту">
+      <button class="btn btn-accent" type="submit">Найти</button>
+    </form>
+  </div>
+</div>
+
+<!-- ======================= КОНТЕНТ СТРАНИЦЫ ======================= -->
+<main class="container my-4 flex-grow-1">
+  {% block content %}{% endblock %}
+</main>
+
+<!-- ======================= ПОДВАЛ: контакты + счётчик посещений ======================= -->
+<footer class="site-footer mt-auto">
+  <div class="container py-4">
+    <div class="row g-4">
+      <div class="col-md-4">
+        <h6 class="footer-heading">Контакты</h6>
+        <div>📍 {{ site.address }}</div>
+        <div>☎ {{ site.phone }}</div>
+        <div>✉ <a class="footer-link" href="mailto:{{ site.email }}">{{ site.email }}</a></div>
+      </div>
+      <div class="col-md-4">
+        <h6 class="footer-heading">О сайте</h6>
+        <div>Сайт предназначен для читателей и сотрудников {{ site.name|lower }}.</div>
+        <div class="mt-1">{{ site.developer }}, {{ site.year }} г.</div>
+      </div>
+      <div class="col-md-4">
+        <h6 class="footer-heading">Статистика посещений</h6>
+        <div>Эта страница посещена: <span class="footer-counter">{{ page_visits }}</span> раз(а)</div>
+        <div>Всего посещений сайта: <span class="footer-counter">{{ total_visits }}</span></div>
+        <div class="small mt-1">Каждое открытие или обновление страницы учитывается как посещение.</div>
+      </div>
+    </div>
+    <hr class="footer-hr">
+    <div class="small text-center">© {{ site.year }} {{ site.name }}, {{ site.city }}. Все права защищены.</div>
+  </div>
+</footer>
+
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index:1100">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+      <div class="toast align-items-center text-bg-{{ 'danger' if category=='danger' else category }}"
+           role="alert" aria-live="assertive" aria-atomic="true" data-bs-delay="5000">
+        <div class="d-flex">
+          <div class="toast-body">{{ message }}</div>
+          <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                  data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+      </div>
+    {% endfor %}
+  {% endwith %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

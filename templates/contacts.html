@@ -1,0 +1,53 @@
+<!-- templates/contacts.html — контакты + карта с геолокацией -->
+{% extends "base.html" %}
+{% block title %}Контакты — {{ site.name }}{% endblock %}
+{% block content %}
+
+<h2 class="section-title">Контактные данные</h2>
+
+<div class="row g-4">
+  <div class="col-lg-4">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white fw-semibold">Как нас найти</div>
+      <div class="card-body">
+        <p>📍 <b>Адрес:</b><br>{{ site.address }}</p>
+        <p>☎ <b>Телефон:</b><br><a href="tel:{{ site.phone }}">{{ site.phone }}</a></p>
+        <p>✉ <b>E-mail:</b><br><a href="mailto:{{ site.email }}">{{ site.email }}</a></p>
+        <hr>
+        <p class="mb-1"><b>Режим работы:</b></p>
+        <ul class="mb-0">
+          <li>Пн–Пт: 9:00–21:00</li>
+          <li>Сб–Вс: 10:00–18:00</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mt-3">
+      <div class="card-header bg-white fw-semibold">Геолокация</div>
+      <div class="card-body">
+        <p class="small">Нажмите кнопку, чтобы определить ваше местоположение —
+           на карте появится маркер, а мы покажем расстояние до библиотеки.</p>
+        <button id="locateBtn" class="btn btn-accent w-100">📍 Определить моё местоположение</button>
+        <div id="locateStatus" class="small text-muted mt-2"></div>
+        <div id="distanceInfo" class="small mt-1"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white fw-semibold">Карта проезда</div>
+      <div class="card-body p-0">
+        <!-- Сервис «карта с геолокацией»: маркер библиотеки задаётся здесь -->
+        <div id="map" style="height: 420px;"
+             data-lat="{{ lat }}" data-lon="{{ lon }}"
+             data-title="{{ site.name }}"></div>
+      </div>
+      <div class="card-body small text-muted">
+        Координаты библиотеки: {{ lat }}, {{ lon }}. Обновите страницу, чтобы сбросить результаты геолокации.
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

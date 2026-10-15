@@ -1,0 +1,103 @@
+<!-- templates/index.html — главная страница -->
+{% extends "base.html" %}
+{% block title %}Главная — {{ site.name }}, {{ site.city }}{% endblock %}
+{% block meta %}
+  <meta name="description" content="Городская библиотека: новости, электронный каталог, выдача книг, услуги читателям, режим работы.">
+  <meta name="keywords" content="библиотека, Обнинск, книги, читатели, новости библиотеки, каталог, выдача книг, читальный зал">
+{% endblock %}
+{% block content %}
+
+<div class="p-4 p-lg-5 mb-4 rounded hero">
+  <div class="row align-items-center g-4">
+    <div class="col-lg-8">
+      <h1 class="display-6 fw-semibold hero-title">Добро пожаловать в {{ site.name|lower }}!</h1>
+      <p class="lead mt-3">
+        Наш сайт создан для <span class="text-highlight">читателей</span>: здесь вы найдёте
+        <a href="{{ url_for('news') }}">новости</a>, сведения об
+        <a href="{{ url_for('about') }}">услугах библиотеки</a>, полезные
+        <a href="{{ url_for('links') }}">ссылки</a> и
+        <a href="{{ url_for('db_app') }}">электронный каталог выдачи</a>.
+      </p>
+      <p>
+        Библиотека обслуживает более <b>{{ stats.readers }}</b> читателей,
+        в фонде — <b>{{ stats.books }}</b> изданий, оформлено
+        <b>{{ stats.loans }}</b> выдач.
+      </p>
+      <a class="btn btn-accent btn-lg mt-2" href="{{ url_for('about') }}">Узнать о библиотеке</a>
+    </div>
+    <div class="col-lg-4 text-center">
+      <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="Библиотека" width="180" height="180">
+    </div>
+  </div>
+</div>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    <h4 class="section-title">Последние новости</h4>
+    {% for n in latest_news %}
+      <article class="card shadow-sm mb-3">
+        <div class="card-body">
+          <h5 class="card-title">{{ n.title }}</h5>
+          <p class="card-text">{{ n.body }}</p>
+          <div class="text-muted small">Опубликовано: {{ n.published_at }}</div>
+        </div>
+      </article>
+    {% endfor %}
+    <a href="{{ url_for('news') }}" class="btn btn-outline-accent">Все новости ({{ stats.news }})</a>
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-white fw-semibold">Режим работы</div>
+      <div class="card-body">
+        <table class="table table-sm table-borderless mb-0">
+          <tbody>
+            <tr><td>Понедельник–пятница</td><td class="text-end"><b>9:00–21:00</b></td></tr>
+            <tr><td>Суббота–воскресенье</td><td class="text-end"><b>10:00–18:00</b></td></tr>
+            <tr><td>Абонемент</td><td class="text-end"><b>до 20:00</b></td></tr>
+            <tr><td>Читальный зал</td><td class="text-end"><b>до закрытия</b></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-white fw-semibold">Сервисы сайта</div>
+      <div class="list-group list-group-flush">
+        <a class="list-group-item list-group-item-action" href="{{ url_for('services') }}">🌤 Погода и курсы валют</a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('services') }}">📊 Топ посещаемых страниц</a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('contacts') }}">🗺 Карта проезда и геолокация</a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('xml_info') }}">📄 XML-доступ к данным</a>
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-header bg-white fw-semibold">Экспресс-навигация</div>
+      <div class="card-body small">
+        <p class="mb-2">Разделы сайта: <a href="#about-brief">о библиотеке</a> ·
+          <a href="{{ url_for('achievements') }}">достижения</a> ·
+          <a href="{{ url_for('links') }}">полезные ссылки</a> ·
+          <a href="{{ url_for('contacts') }}">контакты</a>.</p>
+        <p class="mb-0">Ищите информацию через поисковую строку под меню — она работает по всем страницам и новостям.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h4 class="section-title mt-5" id="about-brief">Кратко о библиотеке</h4>
+<div class="row g-4">
+  <div class="col-md-4">
+    <p>Библиотека открыта для <span class="text-highlight">всех жителей города</span> —
+    от школьников до пенсионеров. Записаться можно по паспорту за 5 минут.</p>
+  </div>
+  <div class="col-md-4">
+    <p>К услугам читателей — <span class="text-highlight">абонемент</span>, читальный зал,
+    доступ к электронному каталогу и Wi-Fi.</p>
+  </div>
+  <div class="col-md-4">
+    <p>Регулярно проходят <span class="text-highlight">тематические вечера</span>, выставки
+    и встречи с писателями. Следите за новостями!</p>
+  </div>
+</div>
+
+{% endblock %}

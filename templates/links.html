@@ -1,0 +1,100 @@
+<!-- templates/links.html — коллекция полезных ссылок по теме -->
+{% extends "base.html" %}
+{% block title %}Полезные ссылки — {{ site.name }}{% endblock %}
+{% block content %}
+
+<h2 class="section-title">Полезные ссылки</h2>
+
+<p class="lead">Коллекция ресурсов, где можно найти дополнительную информацию по тематике библиотеки, книг и чтения.</p>
+
+<div class="row g-4">
+  <div class="col-md-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-white fw-semibold">📚 Электронные библиотеки и книги</div>
+      <ul class="list-group list-group-flush">
+        <li class="list-group-item">
+          <a href="https://rusneb.ru/" target="_blank" rel="noopener">Национальная электронная библиотека</a>
+          — доступ к оцифрованным изданиям из фондов российских библиотек.
+        </li>
+        <li class="list-group-item">
+          <a href="https://нэб.рф/" target="_blank" rel="noopener">НЭБ.РФ</a>
+          — бесплатное чтение книг, журналов и газет онлайн.
+        </li>
+        <li class="list-group-item">
+          <a href="https://www.litres.ru/" target="_blank" rel="noopener">ЛитРес</a>
+          — крупнейший магазин электронных и аудиокниг на русском языке.
+        </li>
+        <li class="list-group-item">
+          <a href="https://ilibrary.ru/" target="_blank" rel="noopener">Айбиблиотека (imwerden)</a>
+          — классика русской и мировой литературы в электронном виде.
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-white fw-semibold">🔎 Каталоги и справочники</div>
+      <ul class="list-group list-group-flush">
+        <li class="list-group-item">
+          <a href="https://search.rsl.ru/ru" target="_blank" rel="noopener">РГБ — Российская государственная библиотека</a>
+          — электронный каталог и подборки из фондов РГБ.
+        </li>
+        <li class="list-group-item">
+          <a href="https://ruslan.rsl.ru/" target="_blank" rel="noopener">РУСЛАН</a>
+          — общероссийский информационный портал о библиотеках.
+        </li>
+        <li class="list-group-item">
+          <a href="https://www.chitalnya.ru/" target="_blank" rel="noopener">«Читальня»</a>
+          — библиографический справочник изданий и авторов.
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-white fw-semibold">📖 Литература и чтение</div>
+      <ul class="list-group list-group-flush">
+        <li class="list-group-item">
+          <a href="https://www.livelib.ru/" target="_blank" rel="noopener">LiveLib</a>
+          — социальная сеть читателей: рецензии, рейтинги книг.
+        </li>
+        <li class="list-group-item">
+          <a href="https://www.bookmail.ru/" target="_blank" rel="noopener">Bookmail.ru</a>
+          — аннотации, новинки и обзоры книжного рынка.
+        </li>
+        <li class="list-group-item">
+          <a href="https://www.culture.ru/" target="_blank" rel="noopener">Портал «Культура.РФ»</a>
+          — события культуры, статьи о литературе и издательском деле.
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-white fw-semibold">🛠 Для студентов и разработчиков</div>
+      <ul class="list-group list-group-flush">
+        <li class="list-group-item">
+          <a href="https://developer.mozilla.org/ru/docs/Web/HTML" target="_blank" rel="noopener">MDN: HTML</a>
+          — справочник по языку разметки веб-страниц.
+        </li>
+        <li class="list-group-item">
+          <a href="https://flask.palletsprojects.com/" target="_blank" rel="noopener">Flask</a>
+          — документация фреймворка, на котором работает это приложение к БД.
+        </li>
+        <li class="list-group-item">
+          <a href="https://www.sqlite.org/lang.html" target="_blank" rel="noopener">SQLite: язык SQL</a>
+          — справочник по запросам к базе данных.
+        </li>
+        <li class="list-group-item">
+          <a href="https://validator.w3.org/" target="_blank" rel="noopener">W3C Validator</a>
+          — проверка HTML-страниц на соответствие стандартам.
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

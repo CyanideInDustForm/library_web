@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
+  <!-- Логотип городской библиотеки: открытая книга на фоне круга -->
+  <circle cx="48" cy="48" r="46" fill="#e98527"/>
+  <circle cx="48" cy="48" r="46" fill="none" stroke="#3b2100" stroke-width="3"/>
+  <!-- корешок книги -->
+  <path d="M48 26 C40 20 26 20 18 24 L18 66 C26 62 40 62 48 68 C56 62 70 62 78 66 L78 24 C70 20 56 20 48 26 Z"
+        fill="#fff8ee" stroke="#3b2100" stroke-width="2.5" stroke-linejoin="round"/>
+  <line x1="48" y1="26" x2="48" y2="68" stroke="#3b2100" stroke-width="2.5"/>
+  <!-- строки текста слева -->
+  <g stroke="#e98527" stroke-width="2.5" stroke-linecap="round">
+    <line x1="25" y1="33" x2="42" y2="33"/>
+    <line x1="25" y1="40" x2="42" y2="40"/>
+    <line x1="25" y1="47" x2="42" y2="47"/>
+    <line x1="25" y1="54" x2="42" y2="54"/>
+  </g>
+  <!-- строки текста справа -->
+  <g stroke="#e98527" stroke-width="2.5" stroke-linecap="round">
+    <line x1="54" y1="33" x2="71" y2="33"/>
+    <line x1="54" y1="40" x2="71" y2="40"/>
+    <line x1="54" y1="47" x2="71" y2="47"/>
+    <line x1="54" y1="54" x2="71" y2="54"/>
+  </g>
+  <!-- лампочка знания над книгой -->
+  <circle cx="48" cy="15" r="5" fill="#3b2100"/>
+  <g stroke="#3b2100" stroke-width="2" stroke-linecap="round">
+    <line x1="48" y1="6" x2="48" y2="8"/>
+    <line x1="39" y1="9" x2="41" y2="11"/>
+    <line x1="57" y1="9" x2="55" y2="11"/>
+  </g>
+</svg>

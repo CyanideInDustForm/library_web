@@ -1,0 +1,36 @@
+<!-- templates/site_search.html — результаты поиска по сайту -->
+{% extends "base.html" %}
+{% block title %}Поиск по сайту — {{ site.name }}{% endblock %}
+{% block content %}
+
+<h2 class="section-title">Поиск по сайту</h2>
+
+{% if not query %}
+  <div class="alert alert-info">
+    Введите слова в поисковую строку под верхним меню — система найдёт страницы сайта
+    и новости из базы данных, где встречаются эти слова.
+  </div>
+{% else %}
+  <p class="lead">По запросу «<b>{{ query }}</b>» найдено страниц и новостей: <b>{{ results|length }}</b>.</p>
+
+  {% if results %}
+    <div class="list-group shadow-sm">
+      {% for r in results %}
+        <a class="list-group-item list-group-item-action" href="{{ r.url }}">
+          <div class="d-flex w-100 justify-content-between">
+            <h5 class="mb-1">{{ r.title }}</h5>
+            <span class="badge text-bg-secondary align-self-start">{{ r.kind }}</span>
+          </div>
+          <p class="mb-1">{{ r.snippet }}</p>
+        </a>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="alert alert-warning">
+      Ничего не найдено. Попробуйте другие слова, например:
+      «новости», «книги», «выдача», «услуги», «контакты».
+    </div>
+  {% endif %}
+{% endif %}
+
+{% endblock %}

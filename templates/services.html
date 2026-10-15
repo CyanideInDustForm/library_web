@@ -1,0 +1,107 @@
+<!-- templates/services.html — сервисы: погода, валюта, топ страниц -->
+{% extends "base.html" %}
+{% block title %}Сервисы — {{ site.name }}{% endblock %}
+{% block content %}
+
+<h2 class="section-title">Сервисы сайта</h2>
+<p class="lead">Дополнительные сервисы для посетителей сайта. Данные обновляются автоматически.</p>
+
+<div class="row g-4">
+  <div class="col-md-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-white fw-semibold">🌤 Погода в {{ site.city }}</div>
+      <div class="card-body">
+        {% if weather %}
+          <div class="display-6">{{ weather.temperature }} °C</div>
+          <div class="fs-5">{{ weather.description }}</div>
+          <div class="text-muted">Ветер: {{ weather.wind }} км/ч</div>
+          <div class="text-muted small mt-1">Данные: Open-Meteo, обновлено {{ weather.time }}</div>
+        {% else %}
+          <div class="alert alert-warning mb-0">
+            Сервис погоды временно недоступен (нет доступа в Интернет).
+            Попробуйте обновить страницу позже.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-white fw-semibold">💱 Курсы валют ЦБ РФ</div>
+      <div class="card-body">
+        {% if currency %}
+          <table class="table table-sm table-striped mb-0">
+            <thead>
+              <tr><th>Валюта</th><th>Курс к рублю</th></tr>
+            </thead>
+            <tbody>
+              {% for c in currency %}
+                <tr>
+                  <td>{{ c.name }} ({{ c.code }})</td>
+                  <td><b>{{ '%.2f'|format(c.value) }} ₽</b></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <div class="text-muted small mt-2">Источник: официальный сайт Центрального банка РФ.</div>
+        {% else %}
+          <div class="alert alert-warning mb-0">
+            Сервис курсов валют временно недоступен (нет доступа в Интернет).
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-white fw-semibold">📊 Топ посещаемых страниц</div>
+      <div class="card-body">
+        {% if top_pages %}
+          <table class="table table-sm table-striped mb-0">
+            <thead>
+              <tr><th>#</th><th>Страница</th><th>Посещений</th></tr>
+            </thead>
+            <tbody>
+              {% for p in top_pages %}
+                <tr>
+                  <td>{{ loop.index }}</td>
+                  <td><a href="{{ p.page }}">{{ p.title }}</a></td>
+                  <td><b>{{ p.visits }}</b></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <div class="text-muted">Статистика появится после первых посещений.</div>
+        {% endif %}
+        <div class="form-text mt-2">
+          Счётчик ведётся в базе данных: каждое открытие или обновление страницы = одно посещение.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card shadow-sm h-100">
+      <div class="card-header bg-white fw-semibold">🗺 Другие сервисы</div>
+      <div class="list-group list-group-flush">
+        <a class="list-group-item list-group-item-action" href="{{ url_for('contacts') }}">
+          Карта с геолокацией — страница «Контакты»
+        </a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('site_search', q='книги') }}">
+          Поисковик по сайту — строка под верхним меню
+        </a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('xml_info') }}">
+          XML-доступ к данным библиотеки
+        </a>
+        <a class="list-group-item list-group-item-action" href="{{ url_for('db_app') }}">
+          Приложение к базе данных (учёт выдачи)
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

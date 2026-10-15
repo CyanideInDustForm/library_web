@@ -1,0 +1,58 @@
+<!-- templates/news.html — новости: показ и ввод через БД -->
+{% extends "base.html" %}
+{% block title %}Новости — {{ site.name }}{% endblock %}
+{% block content %}
+
+<h2 class="section-title">Новости библиотеки</h2>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    {% for n in news %}
+      <article class="card shadow-sm mb-3" id="news-{{ n.id }}">
+        <div class="card-body">
+          <h5 class="card-title">{{ n.title }}</h5>
+          <p class="card-text">{{ n.body }}</p>
+          <div class="text-muted small">🕒 {{ n.published_at }}</div>
+        </div>
+      </article>
+    {% else %}
+      <div class="alert alert-info">Новостей пока нет — добавьте первую через форму справа.</div>
+    {% endfor %}
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white fw-semibold">➕ Добавить новость (запись в БД)</div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('news_add') }}" class="needs-validation" novalidate>
+          <div class="mb-3">
+            <label class="form-label">Заголовок</label>
+            <input class="form-control" name="title" minlength="5" maxlength="120" required>
+            <div class="invalid-feedback">Заголовок — от 5 до 120 символов.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Текст новости</label>
+            <textarea class="form-control" name="body" rows="5" minlength="10" maxlength="2000" required></textarea>
+            <div class="invalid-feedback">Текст — от 10 до 2000 символов.</div>
+          </div>
+          <button class="btn btn-accent w-100" type="submit">Опубликовать</button>
+        </form>
+        <div class="form-text mt-2">
+          Новость сохраняется в таблицу <code>news</code> базы данных и сразу
+          появляется на странице, в поисковике и в XML-ленте.
+        </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mt-3">
+      <div class="card-header bg-white fw-semibold">📄 XML-лента</div>
+      <div class="card-body">
+        Эти же новости доступны в машиночитаемом формате:
+        <a href="{{ url_for('xml_news') }}">xml/news.xml</a>
+        (оформление — через <a href="{{ url_for('xml_info') }}">XML-доступ</a>).
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
