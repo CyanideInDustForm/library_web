@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- static/xml/events.xsd — схемы афиши мероприятий (/xml/events.xml) -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="events">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="item" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="id" type="xs:positiveInteger"/>
+              <xs:element name="title" type="xs:string"/>
+              <xs:element name="description" type="xs:string"/>
+              <xs:element name="date" type="xs:string"/>
+              <xs:element name="place" type="xs:string"/>
+              <xs:element name="seats" type="xs:positiveInteger"/>
+              <xs:element name="free" type="xs:nonNegativeInteger"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+      <xs:attribute name="generated" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

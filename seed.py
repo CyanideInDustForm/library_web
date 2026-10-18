@@ -5,6 +5,8 @@ import sqlite3
 from datetime import date, timedelta, datetime
 import random
 
+from werkzeug.security import generate_password_hash
+
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(ROOT, "data")
 SCHEMA_PATH = os.path.join(ROOT, "schema.sql")
@@ -82,6 +84,32 @@ NEWS = [
     ("Клуб читателей объявляет набор", "Книжный клуб библиотеки открывает набор новых участников. Обсуждаем одну книгу в месяц, встречи проходят каждую среду в 18:00."),
     ("Режим работы в праздники", "Обратите внимание: в праздничные дни библиотека работает с 10:00 до 16:00, абонемент закрывается на час раньше."),
     ("Конкурс детского рисунка", "Стартовал ежегодный конкурс детского рисунка «Моя любимая книга». Работы принимаются до конца месяца на первом этаже библиотеки."),
+]
+
+# --- ПОЛЬЗОВАТЕЛИ САЙТА (пароль у всех тестовых: 12345) ---
+SEED_USERS = [
+    ("nastya", "Анастасия Иванова", "nastya@mail.ru"),
+    ("reader", "Пётр Сидоров", "petr@mail.ru"),
+    ("bookworm", "Ольга Книжкина", None),
+]
+
+# --- МЕРОПРИЯТИЯ --- (title, description, day_offset от сегодня, час, минуты, место, мест)
+SEED_EVENTS = [
+    ("Литературный вечер с поэтами", "Поэты города читают новые стихи, библиотекари готовят выставку редких изданий. Вход свободный, по записи.", 5, 18, 30, "Читальный зал, 2 этаж", 40),
+    ("Встреча книжного клуба", "Обсуждаем роман «Мастер и Маргарита». Просим прочитать первые 15 глав.", 12, 18, 0, "Клубная комната", 15),
+    ("Детский час: сказки на ночь", "Чтение вслух с демонстрацией кукольного театра для малышей 4–7 лет.", 19, 11, 0, "Детский отдел", 20),
+    ("Лекция «История книгопечатания»", "От Гутенберга до цифровых библиотек: как менялась книга за 500 лет.", 26, 17, 0, "Конференц-зал", 50),
+    ("Мастер-класс по скорочтению", "Практическое занятие: техники быстрого чтения и запоминания текста.", 9, 16, 0, "Читальный зал, 2 этаж", 25),
+    ("Выставка редких изданий", "Открытие выставки книг XIX века из фонда библиотеки. Экскурсии каждый час.", 15, 12, 0, "Выставочный зал", 60),
+]
+
+# --- ОТЗЫВЫ (гостевая книга) ---
+SEED_REVIEWS = [
+    (2, "Отличная библиотека! Всегда находят нужную книгу, а новый читальный зал — просто мечта."),
+    (3, "Хожу в книжный клуб каждую среду. Атмосфера уютная, обсуждения живые, рекомендую всем."),
+    (1, "Очень удобно записываться на мероприятия через сайт. Всё понятно, пять минут — и место забронировано."),
+    (2, "Детский отдел — спасение для родителей. Сын теперь сам просится на «сказки на ночь»."),
+    (3, "Большой выбор классики, вежливые библиотекари. Небольшой минус — очередь на абонементе вечером."),
 ]
 
 
@@ -200,6 +228,47 @@ def main():
         con.execute(
             "INSERT INTO news(title, body, published_at) VALUES (?, ?, ?);",
             (title, body, published),
+        )
+
+    # --- пользователи сайта ---
+    user_ids = {}
+    for username, full_name, email in SEED_USERS:
+        cur = con.execute(
+            "INSERT INTO users(username, password_hash, full_name, email, created_at) "
+            "VALUES (?, ?, ?, ?, ?);",
+            (username, generate_password_hash("12345"), full_name, email,
+             base_day.strftime("%Y-%m-%d %H:%M")),
+        )
+        user_ids[username] = cur.lastrowid
+
+    # --- мероприятия ---
+    event_ids = []
+    for title, desc, day_off, hour, minute, place, seats in SEED_EVENTS:
+        event_dt = (base_day + timedelta(days=day_off)).replace(hour=hour, minute=minute)
+        cur = con.execute(
+            "INSERT INTO events(title, description, event_date, place, seats) VALUES (?, ?, ?, ?, ?);",
+            (title, desc, event_dt.strftime("%Y-%m-%d %H:%M"), place, seats),
+        )
+        event_ids.append(cur.lastrowid)
+
+    # --- записи на мероприятия (nastya на 2 мероприятия, reader на 1) ---
+    registrations = [
+        (event_ids[0], user_ids["nastya"]),
+        (event_ids[2], user_ids["nastya"]),
+        (event_ids[0], user_ids["reader"]),
+    ]
+    for event_id, user_id in registrations:
+        con.execute(
+            "INSERT OR IGNORE INTO event_registrations(event_id, user_id, created_at) VALUES (?, ?, ?);",
+            (event_id, user_id, base_day.strftime("%Y-%m-%d %H:%M")),
+        )
+
+    # --- отзывы (гостевая книга) ---
+    for user_id, text in SEED_REVIEWS:
+        days_ago = random.randint(0, 20)
+        con.execute(
+            "INSERT INTO reviews(user_id, text, created_at) VALUES (?, ?, ?);",
+            (user_id, text, (base_day - timedelta(days=days_ago)).strftime("%Y-%m-%d %H:%M")),
         )
 
     con.commit()

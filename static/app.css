@@ -65,5 +65,15 @@
   padding: 0 .15em;
 }
 .achievement-card{ border-top: 3px solid var(--accent); }
+
+/* ---------- Календарь мероприятий ---------- */
+.calendar{ table-layout: fixed; }
+.calendar td{ height: 88px; vertical-align: top; width: 14.28%; }
+.calendar-empty{ background: #faf6ee; }
+.calendar-event-day{ background: #fff3dd; }
+.calendar-event-day > div:first-child{ font-weight: 700; color: var(--dark); }
+.text-bg-accent{ background: var(--accent); color: #3b2100; }
+a.badge.text-bg-accent:hover{ background: #d1982f; color: #3b2100; }
+
 a{ color: #a35a10; }
 a:hover{ color: #6b3900; }

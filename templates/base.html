@@ -19,7 +19,7 @@
 
 <!-- ======================= ШАПКА (логотип организации) ======================= -->
 <header class="site-header">
-  <div class="container d-flex align-items-center gap-3 py-3">
+  <div class="container d-flex align-items-center gap-3 py-3 flex-wrap">
     <a href="{{ url_for('index') }}" class="d-flex align-items-center gap-3 text-decoration-none">
       <img src="{{ url_for('static', filename='img/logo.svg') }}" alt="Логотип библиотеки" width="56" height="56">
       <span class="header-brand">
@@ -27,9 +27,27 @@
         <small class="header-subtitle">{{ site.city }} · читай, узнавай, общайся</small>
       </span>
     </a>
-    <div class="ms-auto text-end d-none d-md-block">
-      <div class="header-phone">☎ {{ site.phone }}</div>
-      <div class="header-hours small">Пн–Пт 9:00–21:00, Сб–Вс 10:00–18:00</div>
+    <div class="ms-auto d-flex align-items-center gap-3">
+      <div class="text-end d-none d-md-block">
+        <div class="header-phone">☎ {{ site.phone }}</div>
+        <div class="header-hours small">Пн–Пт 9:00–21:00, Сб–Вс 10:00–18:00</div>
+      </div>
+      {% if current_user %}
+        <div class="dropdown">
+          <a class="btn btn-accent dropdown-toggle" href="#" data-bs-toggle="dropdown">
+            👤 {{ current_user.full_name.split(' ')[0] }}
+          </a>
+          <ul class="dropdown-menu dropdown-menu-end">
+            <li><a class="dropdown-item" href="{{ url_for('account') }}">Личный кабинет</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('events') }}">Мероприятия</a></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><a class="dropdown-item" href="{{ url_for('logout') }}">Выйти</a></li>
+          </ul>
+        </div>
+      {% else %}
+        <a class="btn btn-outline-accent" href="{{ url_for('login') }}">Войти</a>
+        <a class="btn btn-accent" href="{{ url_for('register') }}">Регистрация</a>
+      {% endif %}
     </div>
   </div>
 </header>
@@ -42,15 +60,35 @@
       <span class="navbar-toggler-icon"></span>
     </button>
     <div class="collapse navbar-collapse" id="mainNav">
-      <ul class="navbar-nav w-100">
+      <ul class="navbar-nav w-100 flex-wrap">
         <li class="nav-item">
           <a class="nav-link menu-link {{ 'active' if active_path == '/' }}" href="{{ url_for('index') }}">Главная</a>
         </li>
         <li class="nav-item">
           <a class="nav-link menu-link {{ 'active' if active_path == '/about' }}" href="{{ url_for('about') }}">О библиотеке</a>
         </li>
+        <li class="nav-item dropdown">
+          <a class="nav-link menu-link dropdown-toggle {{ 'active' if active_path in ['/history','/help','/catalog','/top-books','/top-readers','/news/archive'] }}"
+             href="#" data-bs-toggle="dropdown">Читателю</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{{ url_for('history') }}">История библиотеки</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('catalog') }}">Каталог книг</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('top_books') }}">Топ-10 популярных книг</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('top_readers') }}">Рейтинг читателей</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('news_archive') }}">Архив новостей</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('help_page') }}">Помощь библиотеке</a></li>
+          </ul>
+        </li>
         <li class="nav-item">
           <a class="nav-link menu-link {{ 'active' if active_path == '/news' }}" href="{{ url_for('news') }}">Новости</a>
+        </li>
+        <li class="nav-item dropdown">
+          <a class="nav-link menu-link dropdown-toggle {{ 'active' if active_path in ['/reviews','/events'] }}"
+             href="#" data-bs-toggle="dropdown">Сообщество</a>
+          <ul class="dropdown-menu">
+            <li><a class="dropdown-item" href="{{ url_for('reviews') }}">Отзывы читателей</a></li>
+            <li><a class="dropdown-item" href="{{ url_for('events') }}">Мероприятия и запись</a></li>
+          </ul>
         </li>
         <li class="nav-item">
           <a class="nav-link menu-link {{ 'active' if active_path == '/achievements' }}" href="{{ url_for('achievements') }}">Достижения</a>

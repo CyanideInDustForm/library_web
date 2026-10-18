@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- static/xml/loans.xsd — схема журнала выдач (/xml/loans.xml) -->
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="loans">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="item" maxOccurs="unbounded">
+          <xs:complexType>
+            <xs:sequence>
+              <xs:element name="reader" type="xs:string"/>
+              <xs:element name="book" type="xs:string"/>
+              <xs:element name="librarian" type="xs:string"/>
+              <xs:element name="status" type="xs:string"/>
+              <xs:element name="issue" type="xs:string"/>
+              <xs:element name="due" type="xs:string"/>
+              <xs:element name="returned" type="xs:string"/>
+            </xs:sequence>
+          </xs:complexType>
+        </xs:element>
+      </xs:sequence>
+      <xs:attribute name="generated" type="xs:string" use="required"/>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>

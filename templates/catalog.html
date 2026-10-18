@@ -1,0 +1,44 @@
+<!-- templates/catalog.html — каталог книг -->
+{% extends "base.html" %}
+{% block title %}Каталог книг — {{ site.name }}{% endblock %}
+{% block content %}
+
+<h2 class="section-title">Каталог книг</h2>
+
+<form class="d-flex mb-3 site-search-form" method="get" action="{{ url_for('catalog') }}">
+  <input class="form-control" type="search" name="q" value="{{ q }}"
+         placeholder="Поиск по названию или автору…">
+  <button class="btn btn-accent" type="submit">Искать</button>
+</form>
+{% if q %}<p class="text-muted">Найдено по запросу «{{ q }}»: {{ books|length }}.</p>{% endif %}
+
+<div class="table-responsive">
+  <table class="table table-striped table-hover shadow-sm align-middle">
+    <thead class="table-dark">
+      <tr>
+        <th>№ инв.</th><th>Название</th><th>Автор</th><th>Год</th><th>ISBN</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for b in books %}
+        <tr>
+          <td><code>{{ b.inventory_number }}</code></td>
+          <td>{{ b.title }}</td>
+          <td>{{ b.author }}</td>
+          <td>{{ b.publish_year }}</td>
+          <td><code>{{ b.isbn }}</code></td>
+        </tr>
+      {% else %}
+        <tr><td colspan="5" class="text-muted">Ничего не найдено.</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+
+<p class="text-muted small">
+  Данные — из таблицы <code>books</code>. Тот же фонд доступен в машиночитаемом виде:
+  <a href="{{ url_for('xml_books') }}">XML по названию</a> ·
+  <a href="{{ url_for('xml_books', sort='year') }}">XML по году</a>.
+</p>
+
+{% endblock %}

@@ -125,6 +125,74 @@ CREATE TABLE page_visits (
   visits INTEGER NOT NULL DEFAULT 0 CHECK (visits >= 0)
 );
 
+-- ---------- Пользователи сайта (регистрация) ----------
+CREATE TABLE users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+
+  username TEXT NOT NULL
+    CHECK (length(username) BETWEEN 3 AND 30),
+
+  password_hash TEXT NOT NULL
+    CHECK (length(password_hash) BETWEEN 20 AND 255),
+
+  full_name TEXT NOT NULL
+    CHECK (length(full_name) BETWEEN 2 AND 60),
+
+  email TEXT NULL
+    CHECK (email IS NULL OR length(email) BETWEEN 5 AND 60),
+
+  created_at TEXT NOT NULL,
+
+  UNIQUE(username)
+);
+
+-- ---------- Мероприятия библиотеки ----------
+CREATE TABLE events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+
+  title TEXT NOT NULL
+    CHECK (length(title) BETWEEN 5 AND 120),
+
+  description TEXT NOT NULL
+    CHECK (length(description) BETWEEN 10 AND 1000),
+
+  event_date TEXT NOT NULL,   -- 'YYYY-MM-DD HH:MM'
+
+  place TEXT NOT NULL
+    CHECK (length(place) BETWEEN 3 AND 80),
+
+  seats INTEGER NOT NULL
+    CHECK (seats BETWEEN 1 AND 500)
+);
+
+-- ---------- Записи пользователей на мероприятия ----------
+CREATE TABLE event_registrations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+
+  event_id INTEGER NOT NULL
+    REFERENCES events(id) ON DELETE CASCADE,
+
+  user_id INTEGER NOT NULL
+    REFERENCES users(id) ON DELETE CASCADE,
+
+  created_at TEXT NOT NULL,
+
+  UNIQUE(event_id, user_id)
+);
+
+-- ---------- Гостевая книга: отзывы читателей ----------
+CREATE TABLE reviews (
+  id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+
+  user_id INTEGER NOT NULL
+    REFERENCES users(id) ON DELETE CASCADE,
+
+  text TEXT NOT NULL
+    CHECK (length(text) BETWEEN 10 AND 1000),
+
+  created_at TEXT NOT NULL
+);
+
 CREATE INDEX idx_readers_full_name ON readers(full_name);
 CREATE INDEX idx_books_title ON books(title);
 CREATE INDEX idx_loans_reader ON loans(reader_id);
@@ -132,3 +200,7 @@ CREATE INDEX idx_loans_book ON loans(book_id);
 CREATE INDEX idx_loans_librarian ON loans(librarian_id);
 CREATE INDEX idx_loans_issue_date ON loans(issue_date);
 CREATE INDEX idx_news_published ON news(published_at DESC);
+CREATE INDEX idx_events_date ON events(event_date);
+CREATE INDEX idx_reviews_created ON reviews(created_at DESC);
+CREATE INDEX idx_reg_event ON event_registrations(event_id);
+CREATE INDEX idx_reg_user ON event_registrations(user_id);

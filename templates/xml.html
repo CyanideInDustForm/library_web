@@ -1,4 +1,4 @@
-<!-- templates/xml.html — XML-доступ к данным -->
+<!-- templates/xml.html — XML-портал: фиды, XSL, XSD, RSS -->
 {% extends "base.html" %}
 {% block title %}XML-доступ к данным — {{ site.name }}{% endblock %}
 {% block content %}
@@ -6,38 +6,73 @@
 <h2 class="section-title">XML-доступ к данным</h2>
 
 <p class="lead">
-  Данные библиотеки доступны в формате XML: новости, книжный фонд и журнал выдач
-  формируются из базы данных на лету. Откройте любую ленту — браузер покажет её
-  в удобном виде благодаря XSL-таблице стилей.
+  Все данные библиотеки доступны в формате XML: пять лент формируются из базы данных
+  на лету. Каждая лента оформляется в браузере XSL-таблицей, а её структура описана
+  XSD-схемой. Есть также RSS-лента новостей для подписки.
 </p>
 
+<h4 class="section-title">RSS-лента</h4>
+<div class="card shadow-sm mb-4">
+  <div class="card-body d-flex align-items-center gap-3 flex-wrap">
+    <div class="flex-grow-1">
+      <b>📡 Новости библиотеки (RSS 2.0)</b>
+      <div class="text-muted small">Канонический формат RSS — лента открывается в любом RSS-ридере.</div>
+    </div>
+    <a class="btn btn-accent" href="{{ url_for('rss_feed') }}" target="_blank">Открыть /rss.xml</a>
+  </div>
+</div>
+
+<h4 class="section-title">XML-ленты</h4>
 <div class="row g-4">
   {% for f in feeds %}
-    <div class="col-md-4">
+    <div class="col-md-6">
       <div class="card shadow-sm h-100">
         <div class="card-header bg-white fw-semibold">📄 {{ f.title }}</div>
         <div class="card-body d-flex flex-column">
           <p class="card-text">{{ f.desc }}</p>
-          <a class="btn btn-outline-accent mt-auto" href="{{ f.url }}" target="_blank">Открыть XML</a>
+          <p class="small text-muted mb-2">Структура: <code>{{ f.tags }}</code></p>
+          <div class="mt-auto d-flex gap-2 flex-wrap">
+            <a class="btn btn-accent btn-sm" href="{{ f.url }}" target="_blank">Открыть XML</a>
+            <a class="btn btn-outline-accent btn-sm" href="{{ f.xsd }}" target="_blank">XSD-схема</a>
+            {% for v in f.variants|default([]) %}
+              <a class="btn btn-outline-secondary btn-sm" href="{{ v.url }}" target="_blank">{{ v.label }}</a>
+            {% endfor %}
+          </div>
         </div>
       </div>
     </div>
   {% endfor %}
 </div>
 
-<h4 class="section-title mt-4">Как это работает</h4>
+<h4 class="section-title mt-4">Как это устроено</h4>
 <ol>
   <li>Приложение выполняет SQL-запрос к базе данных (SQLite).</li>
   <li>Результаты оборачиваются в XML-теги и отдаются с заголовком <code>application/xml</code>.</li>
-  <li>Ссылка <code>&lt;?xml-stylesheet ...?&gt;</code> подключает XSL-таблицу
-      <a href="{{ url_for('static', filename='news.xsl') }}">static/news.xsl</a>,
-      и браузер преобразует XML в читаемую таблицу.</li>
+  <li>Инструкция <code>&lt;?xml-stylesheet …?&gt;</code> подключает XSL-таблицу — браузер
+      преобразует XML в читаемую таблицу. Для книг доступны два представления:
+      <a href="{{ url_for('xml_books') }}">сортировка по названию</a> и
+      <a href="{{ url_for('xml_books', sort='year') }}">по году издания</a> — и серверная
+      сортировка данных, и <code>xsl:sort</code> в таблице стилей.</li>
+  <li>Инструкция <code>&lt;?xml-model …?&gt;</code> привязывает XSD-схему — структуру
+      документа можно проверить в XML-редакторе (XMLPad, Oxygen, VS Code).</li>
 </ol>
 
 <div class="alert alert-info">
-  Такой XML-формат пригоден для обмена данными между приложениями (например, для
-  лабораторной работы №4 «Организация обмена данными между приложениями»):
-  любая программа может скачать ленту и разобрать её стандартным XML-парсером.
+  Такие ленты — готовый формат для обмена данными между приложениями (лабораторная №4
+  «Организация обмена данными»): любая программа скачивает XML и разбирает его
+  стандартным парсером. XSL-таблицы и сортировка — база для лабораторной №2 (XML/XSL).
 </div>
+
+<h4 class="section-title">Файлы оформления</h4>
+<ul>
+  <li><a href="/static/xml/table.xsl" target="_blank">table.xsl</a> — универсальная таблица (новости, выдачи, отзывы)</li>
+  <li><a href="/static/xml/books.xsl" target="_blank">books.xsl</a> и <a href="/static/xml/books-year.xsl" target="_blank">books-year.xsl</a> — каталог с сортировкой</li>
+  <li><a href="/static/xml/events.xsl" target="_blank">events.xsl</a> — афиша с выделением дат</li>
+  <li><a href="/static/xml/news.xsd" target="_blank">news.xsd</a> ·
+      <a href="/static/xml/books.xsd" target="_blank">books.xsd</a> ·
+      <a href="/static/xml/loans.xsd" target="_blank">loans.xsd</a> ·
+      <a href="/static/xml/events.xsd" target="_blank">events.xsd</a> ·
+      <a href="/static/xml/reviews.xsd" target="_blank">reviews.xsd</a></li>
+</ul>
 
 {% endblock %}

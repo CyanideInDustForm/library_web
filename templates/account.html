@@ -1,0 +1,74 @@
+<!-- templates/account.html — личный кабинет -->
+{% extends "base.html" %}
+{% block title %}Личный кабинет — {{ site.name }}{% endblock %}
+{% block content %}
+
+<h2 class="section-title">Личный кабинет</h2>
+
+<div class="row g-4">
+  <div class="col-lg-4">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white fw-semibold">👤 Профиль</div>
+      <div class="card-body">
+        <table class="table table-sm table-borderless mb-0">
+          <tbody>
+            <tr><td class="text-muted">Логин</td><td><b>{{ current_user.username }}</b></td></tr>
+            <tr><td class="text-muted">Имя</td><td>{{ current_user.full_name }}</td></tr>
+            <tr><td class="text-muted">E-mail</td><td>{{ current_user.email or '—' }}</td></tr>
+            <tr><td class="text-muted">Зарегистрирован</td><td>{{ current_user.created_at }}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <a class="btn btn-outline-accent mt-3" href="{{ url_for('events') }}">→ К мероприятиям</a>
+  </div>
+
+  <div class="col-lg-8">
+    <div class="card shadow-sm mb-4">
+      <div class="card-header bg-white fw-semibold">🎫 Мои записи на мероприятия</div>
+      <div class="card-body">
+        {% if registrations %}
+          <table class="table table-striped align-middle">
+            <thead>
+              <tr><th>Мероприятие</th><th>Дата</th><th>Место</th><th></th></tr>
+            </thead>
+            <tbody>
+              {% for r in registrations %}
+                <tr>
+                  <td>{{ r.title }}</td>
+                  <td>{{ r.event_date }}</td>
+                  <td>{{ r.place }}</td>
+                  <td class="text-end">
+                    <form method="post" action="{{ url_for('events_cancel', reg_id=r.reg_id) }}"
+                          onsubmit="return confirm('Отменить запись?');">
+                      <button class="btn btn-sm btn-outline-danger">Отменить</button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <div class="text-muted">Пока нет записей. Загляните в <a href="{{ url_for('events') }}">афишу</a> —
+             там лекции, выставки и клубные встречи.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card shadow-sm">
+      <div class="card-header bg-white fw-semibold">✍️ Мои отзывы</div>
+      <div class="card-body">
+        {% if reviews %}
+          {% for r in reviews %}
+            <p class="mb-2">«{{ r.text }}» <small class="text-muted">— {{ r.created_at }}</small></p>
+          {% endfor %}
+        {% else %}
+          <div class="text-muted">Вы ещё не оставляли отзывов — это можно сделать в
+             <a href="{{ url_for('reviews') }}">гостевой книге</a>.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

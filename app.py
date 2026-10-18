@@ -8,7 +8,8 @@ import ssl
 import time
 import urllib.request
 import xml.etree.ElementTree as ET
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
+from functools import wraps
 from typing import Any, Dict, List, Optional, Tuple
 from xml.sax.saxutils import escape as xml_escape
 
@@ -16,6 +17,7 @@ from flask import (
     Flask, g, render_template, request, redirect, url_for,
     session, flash, jsonify, Response
 )
+from werkzeug.security import check_password_hash, generate_password_hash
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(ROOT, "data")
@@ -70,7 +72,36 @@ SITE_INDEX: List[Dict[str, str]] = [
      "text": "Поиск база данных читатели книги выдачи агрегация запрос"},
     {"url": "/db/admin", "title": "Администрирование БД",
      "text": "Администрирование база данных таблицы добавить удалить запись"},
+    {"url": "/history", "title": "История библиотеки",
+     "text": "История библиотеки основание годы хронология здание развитие фонды прошлое"},
+    {"url": "/help", "title": "Помощь библиотеке",
+     "text": "Помощь библиотеке волонтёрство передать книги пожертвования поддержать другом библиотеки"},
+    {"url": "/catalog", "title": "Каталог книг",
+     "text": "Каталог книги автор издание ISBN год фонд электронный поиск изданий"},
+    {"url": "/top-books", "title": "Топ-10 популярных книг",
+     "text": "Топ популярные книги рейтинг выдачи самые читаемые бестселлеры"},
+    {"url": "/top-readers", "title": "Рейтинг читателей",
+     "text": "Рейтинг читатели активность самые активные посещения выдачи"},
+    {"url": "/news/archive", "title": "Архив новостей",
+     "text": "Архив новости прошлые месяцы объявления"},
+    {"url": "/reviews", "title": "Отзывы читателей",
+     "text": "Отзывы мнения гостевая книга читатели впечатления благодарности"},
+    {"url": "/events", "title": "Мероприятия библиотеки",
+     "text": "Мероприятия события запись календарь встречи лекции выставки клуб"},
+    {"url": "/register", "title": "Регистрация на сайте",
+     "text": "Регистрация создать аккаунт пользователь логин пароль"},
+    {"url": "/login", "title": "Вход на сайт",
+     "text": "Вход авторизация логин пароль аккаунт"},
+    {"url": "/account", "title": "Личный кабинет",
+     "text": "Личный кабинет профиль мои записи мероприятия настройки"},
 ]
+
+def rss_pub_date(published_at: str) -> str:
+    """'YYYY-MM-DD HH:MM' → RFC-822 дата для RSS (с фиксированным TZ +0300)."""
+    from email.utils import format_datetime
+    dt = datetime.strptime(published_at, "%Y-%m-%d %H:%M")
+    return format_datetime(dt.replace(tzinfo=timezone(timedelta(hours=3))))
+
 
 # ------------------------------ Сервисы (кэш) ------------------------------
 _weather_cache: Dict[str, Any] = {"ts": 0.0, "data": None}
@@ -241,13 +272,30 @@ def create_app() -> Flask:
     @app.context_processor
     def inject_globals():
         page_visits, total_visits = visit_stats(request.path)
+        current_user = None
+        if session.get("user_id"):
+            current_user = q_one(
+                "SELECT id, username, full_name, email, created_at FROM users WHERE id = ?;",
+                (session["user_id"],),
+            )
         return {
             "site": SITE,
+            "current_user": current_user,
             "page_visits": page_visits,
             "total_visits": total_visits,
             "active_path": request.path,
             "year_now": date.today().year,
         }
+
+    # ------------------------- Авторизация -------------------------
+    def login_required(view):
+        @wraps(view)
+        def wrapped(*args, **kwargs):
+            if not session.get("user_id"):
+                flash("Для этого действия нужно войти на сайт.", "warning")
+                return redirect(url_for("login", next=request.path))
+            return view(*args, **kwargs)
+        return wrapped
 
     # ------------------------- Валидация выдачи -------------------------
     def parse_date(s: str) -> date:
@@ -400,21 +448,59 @@ def create_app() -> Flask:
         )
 
     # =========================================================
-    #   XML-ДОСТУП К ДАННЫМ
+    #   XML-ДОСТУП К ДАННЫМ (портал, фиды, RSS)
     # =========================================================
     @app.get("/xml")
     def xml_info():
         feeds = [
-            {"url": url_for("xml_news"), "title": "Новости библиотеки", "desc": "Все новости из базы данных в формате XML (оформляются в браузере через XSL)."},
-            {"url": url_for("xml_books"), "title": "Книжный фонд", "desc": "Каталог книг с авторами, годом издания и ISBN."},
-            {"url": url_for("xml_loans"), "title": "Журнал выдач", "desc": "Последние выдачи книг читателям со статусами."},
+            {
+                "url": url_for("xml_news"), "title": "Новости библиотеки",
+                "desc": "Все новости из базы данных. Оформление — XSL-таблица, "
+                        "структура проверяется XSD-схемой.",
+                "tags": "item → id, title, text, published",
+                "xsd": "/static/xml/news.xsd", "root": "news",
+            },
+            {
+                "url": url_for("xml_books"), "title": "Книжный фонд",
+                "desc": "Каталог книг. Два варианта XSL-представления: по названию и по году издания.",
+                "tags": "item → inventory, title, author, year, isbn",
+                "xsd": "/static/xml/books.xsd", "root": "books",
+                "variants": [
+                    {"label": "по названию", "url": url_for("xml_books")},
+                    {"label": "по году ↓", "url": url_for("xml_books", sort="year")},
+                ],
+            },
+            {
+                "url": url_for("xml_loans"), "title": "Журнал выдач",
+                "desc": "Последние 100 выдач книг читателям со статусами.",
+                "tags": "item → reader, book, librarian, status, issue, due, returned",
+                "xsd": "/static/xml/loans.xsd", "root": "loans",
+            },
+            {
+                "url": url_for("xml_events"), "title": "Афиша мероприятий",
+                "desc": "Предстоящие мероприятия библиотеки с местами и вместимостью.",
+                "tags": "item → id, title, description, date, place, seats, free",
+                "xsd": "/static/xml/events.xsd", "root": "events",
+            },
+            {
+                "url": url_for("xml_reviews"), "title": "Отзывы читателей",
+                "desc": "Гостевая книга: отзывы зарегистрированных пользователей.",
+                "tags": "item → id, author, text, created",
+                "xsd": "/static/xml/reviews.xsd", "root": "reviews",
+            },
         ]
         return render_template("xml.html", feeds=feeds)
 
-    def xml_response(payload: str, feed_name: str) -> Response:
+    def xml_response(payload: str, feed_name: str, xsl: str = "table",
+                     xsd: Optional[str] = None) -> Response:
+        """Собирает XML-документ: декларация + XSL-таблица + XSD-схема + корневой элемент."""
+        pi = f'<?xml-stylesheet type="text/xsl" href="/static/xml/{xsl}.xsl"?>\n'
+        if xsd:
+            pi += (f'<?xml-model href="/static/xml/{xsd}.xsd" '
+                   f'type="application/xml" schematypens="http://www.w3.org/2001/XMLSchema"?>\n')
         xml = (
             '<?xml version="1.0" encoding="UTF-8"?>\n'
-            f'<?xml-stylesheet type="text/xsl" href="/static/news.xsl"?>\n'
+            f'{pi}'
             f'<{feed_name} generated="{datetime.now().isoformat(timespec="seconds")}">\n'
             f'{payload}\n</{feed_name}>'
         )
@@ -434,13 +520,19 @@ def create_app() -> Flask:
             "  </item>"
             for n in items
         )
-        return xml_response(payload, "news")
+        return xml_response(payload, "news", xsd="news")
 
     @app.get("/xml/books.xml")
     def xml_books():
+        # ?sort=year — серверная сортировка по году издания + другая XSL-таблица
+        sort = request.args.get("sort", "title")
+        if sort == "year":
+            order, xsl = "publish_year DESC, title ASC", "books-year"
+        else:
+            order, xsl = "title ASC", "books"
         items = q_all(
             "SELECT inventory_number, title, author, publish_year, isbn "
-            "FROM books ORDER BY title;"
+            f"FROM books ORDER BY {order};"
         )
         payload = "\n".join(
             "  <item>\n"
@@ -452,7 +544,7 @@ def create_app() -> Flask:
             "  </item>"
             for b in items
         )
-        return xml_response(payload, "books")
+        return xml_response(payload, "books", xsl=xsl, xsd="books")
 
     @app.get("/xml/loans.xml")
     def xml_loans():
@@ -479,7 +571,82 @@ def create_app() -> Flask:
             "  </item>"
             for l in items
         )
-        return xml_response(payload, "loans")
+        return xml_response(payload, "loans", xsd="loans")
+
+    @app.get("/xml/events.xml")
+    def xml_events():
+        items = q_all("""
+            SELECT e.id, e.title, e.description, e.event_date, e.place, e.seats,
+                   COUNT(r.id) AS taken
+            FROM events e
+            LEFT JOIN event_registrations r ON r.event_id = e.id
+            GROUP BY e.id
+            ORDER BY e.event_date;
+        """)
+        payload = "\n".join(
+            "  <item>\n"
+            f"    <id>{e['id']}</id>\n"
+            f"    <title>{xml_escape(e['title'])}</title>\n"
+            f"    <description>{xml_escape(e['description'])}</description>\n"
+            f"    <date>{e['event_date']}</date>\n"
+            f"    <place>{xml_escape(e['place'])}</place>\n"
+            f"    <seats>{e['seats']}</seats>\n"
+            f"    <free>{e['seats'] - e['taken']}</free>\n"
+            "  </item>"
+            for e in items
+        )
+        return xml_response(payload, "events", xsl="events", xsd="events")
+
+    @app.get("/xml/reviews.xml")
+    def xml_reviews():
+        items = q_all("""
+            SELECT r.id, u.full_name, r.text, r.created_at
+            FROM reviews r
+            JOIN users u ON u.id = r.user_id
+            ORDER BY r.created_at DESC;
+        """)
+        payload = "\n".join(
+            "  <item>\n"
+            f"    <id>{r['id']}</id>\n"
+            f"    <author>{xml_escape(r['full_name'])}</author>\n"
+            f"    <text>{xml_escape(r['text'])}</text>\n"
+            f"    <created>{r['created_at']}</created>\n"
+            "  </item>"
+            for r in items
+        )
+        return xml_response(payload, "reviews", xsd="reviews")
+
+    @app.get("/rss.xml")
+    def rss_feed():
+        """RSS 2.0-лента новостей — читается любыми RSS-ридерами."""
+        items = q_all(
+            "SELECT id, title, body, published_at FROM news "
+            "ORDER BY published_at DESC LIMIT 20;"
+        )
+        base = request.host_url.rstrip("/")
+        channel_items = "\n".join(
+            "    <item>\n"
+            f"      <title>{xml_escape(n['title'])}</title>\n"
+            f"      <link>{base}{url_for('news')}#news-{n['id']}</link>\n"
+            f"      <guid>{base}{url_for('news')}#news-{n['id']}</guid>\n"
+            f"      <description>{xml_escape(n['body'])}</description>\n"
+            f"      <pubDate>{rss_pub_date(n['published_at'])}</pubDate>\n"
+            "    </item>"
+            for n in items
+        )
+        xml = (
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<rss version="2.0">\n'
+            "  <channel>\n"
+            f"    <title>{xml_escape(SITE['name'])} — новости</title>\n"
+            f"    <link>{base}{url_for('news')}</link>\n"
+            f"    <description>Новости {xml_escape(SITE['name'].lower())}</description>\n"
+            f"    <language>ru</language>\n"
+            f"{channel_items}\n"
+            "  </channel>\n"
+            "</rss>"
+        )
+        return Response(xml, mimetype="application/rss+xml; charset=utf-8")
 
     # =========================================================
     #   ПРИЛОЖЕНИЕ К БД (выдача книг, поиск, администрирование)
@@ -812,6 +979,280 @@ def create_app() -> Flask:
             flash(f"Ошибка удаления: {e}", "danger")
 
         return redirect(url_for("db_admin", table=table))
+
+    # =========================================================
+    #   РЕГИСТРАЦИЯ И ВХОД ПОЛЬЗОВАТЕЛЕЙ
+    # =========================================================
+    def safe_next(default: str = "/") -> str:
+        nxt = request.args.get("next") or request.form.get("next") or default
+        return nxt if nxt.startswith("/") and not nxt.startswith("//") else default
+
+    @app.get("/register")
+    def register():
+        if session.get("user_id"):
+            return redirect(url_for("account"))
+        return render_template("register.html")
+
+    @app.post("/register")
+    def register_post():
+        username = (request.form.get("username") or "").strip()
+        full_name = (request.form.get("full_name") or "").strip()
+        email = (request.form.get("email") or "").strip() or None
+        password = request.form.get("password") or ""
+        confirm = request.form.get("confirm") or ""
+
+        try:
+            if not re.fullmatch(r"[A-Za-z0-9_]{3,30}", username):
+                raise ValueError("Логин: 3–30 символов — буквы, цифры, подчёркивание.")
+            if len(full_name) < 2 or len(full_name) > 60:
+                raise ValueError("Имя: от 2 до 60 символов.")
+            if len(password) < 4:
+                raise ValueError("Пароль: минимум 4 символа.")
+            if password != confirm:
+                raise ValueError("Пароли не совпадают.")
+            if q_one("SELECT id FROM users WHERE username = ?;", (username,)):
+                raise ValueError("Такой логин уже занят.")
+
+            new_id = exec1(
+                "INSERT INTO users(username, password_hash, full_name, email, created_at) "
+                "VALUES (?, ?, ?, ?, ?);",
+                (username, generate_password_hash(password), full_name, email,
+                 datetime.now().strftime("%Y-%m-%d %H:%M")),
+            )
+            session["user_id"] = new_id
+            flash(f"Добро пожаловать, {full_name}!", "success")
+            return redirect(url_for("account"))
+        except ValueError as e:
+            flash(str(e), "danger")
+            return redirect(url_for("register"))
+
+    @app.get("/login")
+    def login():
+        if session.get("user_id"):
+            return redirect(url_for("account"))
+        return render_template("login.html", next=safe_next())
+
+    @app.post("/login")
+    def login_post():
+        username = (request.form.get("username") or "").strip()
+        password = request.form.get("password") or ""
+        user = q_one("SELECT * FROM users WHERE username = ?;", (username,))
+        if user and check_password_hash(user["password_hash"], password):
+            session["user_id"] = user["id"]
+            flash(f"С возвращением, {user['full_name']}!", "success")
+            return redirect(safe_next())
+        flash("Неверный логин или пароль.", "danger")
+        return redirect(url_for("login", next=safe_next()))
+
+    @app.get("/logout")
+    def logout():
+        session.clear()
+        flash("Вы вышли из аккаунта.", "info")
+        return redirect(url_for("index"))
+
+    @app.get("/account")
+    @login_required
+    def account():
+        my_regs = q_all("""
+            SELECT r.id AS reg_id, e.id AS event_id, e.title, e.event_date, e.place, r.created_at
+            FROM event_registrations r
+            JOIN events e ON e.id = r.event_id
+            WHERE r.user_id = ?
+            ORDER BY e.event_date;
+        """, (session["user_id"],))
+        my_reviews = q_all(
+            "SELECT id, text, created_at FROM reviews WHERE user_id = ? ORDER BY created_at DESC;",
+            (session["user_id"],),
+        )
+        return render_template("account.html", registrations=my_regs, reviews=my_reviews)
+
+    # =========================================================
+    #   НОВЫЕ СТРАНИЦЫ: история, помощь, каталог, рейтинги
+    # =========================================================
+    @app.get("/history")
+    def history():
+        return render_template("history.html")
+
+    @app.get("/help")
+    def help_page():
+        return render_template("help.html")
+
+    @app.get("/catalog")
+    def catalog():
+        q = (request.args.get("q") or "").strip()
+        where, params = [], []
+        if q:
+            where.append("(title LIKE ? OR author LIKE ?)")
+            params += [f"%{q}%", f"%{q}%"]
+        sql = "SELECT * FROM books"
+        if where:
+            sql += " WHERE " + " AND ".join(where)
+        sql += " ORDER BY title;"
+        books = q_all(sql, tuple(params))
+        return render_template("catalog.html", books=books, q=q)
+
+    @app.get("/top-books")
+    def top_books():
+        rows = q_all("""
+            SELECT b.id, b.title, b.author, b.publish_year, COUNT(l.id) AS loans_count
+            FROM books b
+            JOIN loans l ON l.book_id = b.id
+            GROUP BY b.id
+            ORDER BY loans_count DESC, b.title ASC
+            LIMIT 10;
+        """)
+        return render_template("top_books.html", books=rows)
+
+    @app.get("/top-readers")
+    def top_readers():
+        rows = q_all("""
+            SELECT r.id, r.full_name, r.reader_card_number, COUNT(l.id) AS loans_count
+            FROM readers r
+            JOIN loans l ON l.reader_id = r.id
+            GROUP BY r.id
+            ORDER BY loans_count DESC, r.full_name ASC
+            LIMIT 10;
+        """)
+        return render_template("top_readers.html", readers=rows)
+
+    @app.get("/news/archive")
+    def news_archive():
+        page = max(1, int(request.args.get("page", 1) or 1))
+        per_page = 5
+        total = q_one("SELECT COUNT(*) AS c FROM news;")["c"]
+        pages = max(1, (total + per_page - 1) // per_page)
+        page = min(page, pages)
+        items = q_all(
+            "SELECT id, title, body, published_at FROM news "
+            "ORDER BY published_at DESC LIMIT ? OFFSET ?;",
+            (per_page, (page - 1) * per_page),
+        )
+        return render_template(
+            "news_archive.html", news=items, page=page, pages=pages, total=total
+        )
+
+    # =========================================================
+    #   ГОСТЕВАЯ КНИГА: отзывы читателей
+    # =========================================================
+    @app.get("/reviews")
+    def reviews():
+        items = q_all("""
+            SELECT r.id, r.text, r.created_at, u.full_name, u.username
+            FROM reviews r
+            JOIN users u ON u.id = r.user_id
+            ORDER BY r.created_at DESC;
+        """)
+        return render_template("reviews.html", reviews=items)
+
+    @app.post("/reviews/add")
+    @login_required
+    def reviews_add():
+        text = (request.form.get("text") or "").strip()
+        if len(text) < 10 or len(text) > 1000:
+            flash("Отзыв должен быть от 10 до 1000 символов.", "danger")
+            return redirect(url_for("reviews"))
+        exec1(
+            "INSERT INTO reviews(user_id, text, created_at) VALUES (?, ?, ?);",
+            (session["user_id"], text, datetime.now().strftime("%Y-%m-%d %H:%M")),
+        )
+        flash("Спасибо! Ваш отзыв опубликован.", "success")
+        return redirect(url_for("reviews"))
+
+    # =========================================================
+    #   МЕРОПРИЯТИЯ: календарь + запись (только для своих)
+    # =========================================================
+    def events_with_stats():
+        return q_all("""
+            SELECT e.*, COUNT(r.id) AS taken,
+                   (e.seats - COUNT(r.id)) AS left
+            FROM events e
+            LEFT JOIN event_registrations r ON r.event_id = e.id
+            GROUP BY e.id
+            ORDER BY e.event_date;
+        """)
+
+    @app.get("/events")
+    def events():
+        events_list = events_with_stats()
+
+        # календарь текущего/выбранного месяца
+        month_str = request.args.get("month", "")
+        try:
+            month_date = datetime.strptime(month_str, "%Y-%m")
+        except ValueError:
+            month_date = datetime.now().replace(day=1)
+        year, month = month_date.year, month_date.month
+
+        by_day: Dict[int, list] = {}
+        for e in events_list:
+            d = datetime.strptime(e["event_date"], "%Y-%m-%d %H:%M")
+            if d.year == year and d.month == month:
+                by_day.setdefault(d.day, []).append(e)
+
+        # сетка календаря, недели с понедельника
+        first = date(year, month, 1)
+        offset = (first.weekday())  # 0 = понедельник
+        days_in_month = (date(year + (month == 12), month % 12 + 1, 1) - timedelta(days=1)).day
+        cells = [None] * offset + list(range(1, days_in_month + 1))
+
+        prev_month = (month_date - timedelta(days=1)).replace(day=1).strftime("%Y-%m")
+        next_first = month_date + timedelta(days=32)
+        next_month = next_first.replace(day=1).strftime("%Y-%m")
+
+        my_event_ids = set()
+        if session.get("user_id"):
+            rows = q_all(
+                "SELECT event_id FROM event_registrations WHERE user_id = ?;",
+                (session["user_id"],),
+            )
+            my_event_ids = {r["event_id"] for r in rows}
+
+        month_names = ["", "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+                       "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь"]
+
+        return render_template(
+            "events.html",
+            events=events_list,
+            cells=cells, by_day=by_day,
+            year=year, month=month,
+            month_title=f"{month_names[month]} {year}",
+            prev_month=prev_month, next_month=next_month,
+            my_event_ids=my_event_ids,
+        )
+
+    @app.post("/events/register/<int:event_id>")
+    @login_required
+    def events_register(event_id: int):
+        ev = q_one("SELECT * FROM events WHERE id = ?;", (event_id,))
+        if not ev:
+            flash("Мероприятие не найдено.", "danger")
+            return redirect(url_for("events"))
+        taken = q_one(
+            "SELECT COUNT(*) AS c FROM event_registrations WHERE event_id = ?;",
+            (event_id,),
+        )["c"]
+        if taken >= ev["seats"]:
+            flash("К сожалению, свободных мест нет.", "warning")
+            return redirect(url_for("events"))
+        try:
+            exec1(
+                "INSERT INTO event_registrations(event_id, user_id, created_at) VALUES (?, ?, ?);",
+                (event_id, session["user_id"], datetime.now().strftime("%Y-%m-%d %H:%M")),
+            )
+            flash(f"Вы записаны на «{ev['title']}»!", "success")
+        except sqlite3.IntegrityError:
+            flash("Вы уже записаны на это мероприятие.", "info")
+        return redirect(url_for("events"))
+
+    @app.post("/events/cancel/<int:reg_id>")
+    @login_required
+    def events_cancel(reg_id: int):
+        exec1(
+            "DELETE FROM event_registrations WHERE id = ? AND user_id = ?;",
+            (reg_id, session["user_id"]),
+        )
+        flash("Запись отменена.", "info")
+        return redirect(url_for("account"))
 
     # ---------- API: модалки создания сущностей ----------
     @app.post("/api/readers/create")

@@ -1,0 +1,46 @@
+<!-- templates/register.html — регистрация пользователя -->
+{% extends "base.html" %}
+{% block title %}Регистрация — {{ site.name }}{% endblock %}
+{% block content %}
+
+<div class="row justify-content-center">
+  <div class="col-md-6 col-lg-5">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white fw-semibold">Регистрация на сайте</div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('register_post') }}" class="needs-validation" novalidate>
+          <div class="mb-3">
+            <label class="form-label">Логин</label>
+            <input class="form-control" name="username" minlength="3" maxlength="30"
+                   pattern="[A-Za-z0-9_]+" required>
+            <div class="invalid-feedback">3–30 символов: буквы, цифры, подчёркивание.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Имя и фамилия</label>
+            <input class="form-control" name="full_name" minlength="2" maxlength="60" required>
+            <div class="invalid-feedback">Укажите имя (2–60 символов).</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">E-mail (необязательно)</label>
+            <input class="form-control" type="email" name="email" maxlength="60">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Пароль</label>
+            <input class="form-control" type="password" name="password" minlength="4" required>
+            <div class="invalid-feedback">Минимум 4 символа.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Повторите пароль</label>
+            <input class="form-control" type="password" name="confirm" minlength="4" required>
+          </div>
+          <button class="btn btn-accent w-100" type="submit">Зарегистрироваться</button>
+        </form>
+        <div class="form-text mt-3 text-center">
+          Уже есть аккаунт? <a href="{{ url_for('login') }}">Войти</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- static/news.xsl — стилевая таблица для XML-лент сайта библиотеки.
+<!-- static/xml/table.xsl — универсальная таблица для XML-лент сайта.
      Подключается через <?xml-stylesheet?> в ответах /xml/*.xml -->
 <xsl:stylesheet version="1.0" xmlns:xsl="http://www.w3.org/1999/XSL/Transform">
   <xsl:output method="html" encoding="UTF-8" indent="yes"/>
@@ -41,7 +41,7 @@
             </xsl:for-each>
           </tbody>
         </table>
-        <a class="back" href="/xml">← К странице XML-доступа</a>
+        <a class="back" href="/xml">← К XML-порталу</a>
       </body>
     </html>
   </xsl:template>

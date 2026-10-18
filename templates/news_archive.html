@@ -1,0 +1,35 @@
+<!-- templates/news_archive.html — архив новостей с постраничной навигацией -->
+{% extends "base.html" %}
+{% block title %}Архив новостей — {{ site.name }}{% endblock %}
+{% block content %}
+
+<h2 class="section-title">Архив новостей</h2>
+<p class="text-muted">Всего новостей: {{ total }}. Показано {{ news|length }} на странице {{ page }} из {{ pages }}.</p>
+
+{% for n in news %}
+  <article class="card shadow-sm mb-3" id="news-{{ n.id }}">
+    <div class="card-body">
+      <h5 class="card-title">{{ n.title }}</h5>
+      <p class="card-text">{{ n.body }}</p>
+      <div class="text-muted small">🕒 {{ n.published_at }}</div>
+    </div>
+  </article>
+{% endfor %}
+
+<nav>
+  <ul class="pagination">
+    <li class="page-item {{ 'disabled' if page <= 1 }}">
+      <a class="page-link" href="{{ url_for('news_archive', page=page-1) }}">← Назад</a>
+    </li>
+    {% for p in range(1, pages + 1) %}
+      <li class="page-item {{ 'active' if p == page }}">
+        <a class="page-link" href="{{ url_for('news_archive', page=p) }}">{{ p }}</a>
+      </li>
+    {% endfor %}
+    <li class="page-item {{ 'disabled' if page >= pages }}">
+      <a class="page-link" href="{{ url_for('news_archive', page=page+1) }}">Вперёд →</a>
+    </li>
+  </ul>
+</nav>
+
+{% endblock %}

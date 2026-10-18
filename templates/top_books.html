@@ -1,0 +1,33 @@
+<!-- templates/top_books.html — топ-10 популярных книг -->
+{% extends "base.html" %}
+{% block title %}Топ-10 книг — {{ site.name }}{% endblock %}
+{% block content %}
+
+<h2 class="section-title">Топ-10 популярных книг</h2>
+<p class="lead">Самые выдаваемые издания за всё время работы библиотеки. Рейтинг строится запросом к базе данных.</p>
+
+<table class="table table-striped shadow-sm align-middle">
+  <thead class="table-dark">
+    <tr><th>#</th><th>Название</th><th>Автор</th><th>Год</th><th>Выдач</th></tr>
+  </thead>
+  <tbody>
+    {% for b in books %}
+      <tr>
+        <td>
+          {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}{{ loop.index }}{% endif %}
+        </td>
+        <td>{{ b.title }}</td>
+        <td>{{ b.author }}</td>
+        <td>{{ b.publish_year }}</td>
+        <td><b>{{ b.loans_count }}</b></td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="alert alert-info">
+  SQL: <code>SELECT …, COUNT(loans.id) GROUP BY books.id ORDER BY COUNT(loans.id) DESC LIMIT 10</code>
+  — тот же запрос доступен в разделе <a href="{{ url_for('db_search', mode='agg') }}">«Поиск по БД» → «Агрегация»</a>.
+</div>
+
+{% endblock %}

@@ -1,0 +1,32 @@
+<!-- templates/top_readers.html — рейтинг читателей -->
+{% extends "base.html" %}
+{% block title %}Рейтинг читателей — {{ site.name }}{% endblock %}
+{% block content %}
+
+<h2 class="section-title">Рейтинг читателей</h2>
+<p class="lead">Самые активные читатели по количеству выдач. Данные — из таблиц <code>readers</code> и <code>loans</code>.</p>
+
+<table class="table table-striped shadow-sm align-middle">
+  <thead class="table-dark">
+    <tr><th>#</th><th>Читатель</th><th>№ билета</th><th>Выдач</th></tr>
+  </thead>
+  <tbody>
+    {% for r in readers %}
+      <tr>
+        <td>
+          {% if loop.index == 1 %}🥇{% elif loop.index == 2 %}🥈{% elif loop.index == 3 %}🥉{% else %}{{ loop.index }}{% endif %}
+        </td>
+        <td>{{ r.full_name }}</td>
+        <td><code>{{ r.reader_card_number }}</code></td>
+        <td><b>{{ r.loans_count }}</b></td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+
+<div class="alert alert-info">
+  Хотите попасть в рейтинг? Запишитесь читателем на абонементе — это бесплатно и занимает пять минут.
+  Подробности на странице <a href="{{ url_for('about') }}">«О библиотеке»</a>.
+</div>
+
+{% endblock %}

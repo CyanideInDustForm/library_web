@@ -1,0 +1,63 @@
+<!-- templates/reviews.html — гостевая книга: отзывы читателей -->
+{% extends "base.html" %}
+{% block title %}Отзывы читателей — {{ site.name }}{% endblock %}
+{% block content %}
+
+<h2 class="section-title">Отзывы читателей</h2>
+
+<div class="row g-4">
+  <div class="col-lg-8">
+    {% for r in reviews %}
+      <div class="card shadow-sm mb-3">
+        <div class="card-body">
+          <div class="d-flex justify-content-between">
+            <h6 class="card-title mb-1">{{ r.full_name }}</h6>
+            <small class="text-muted">{{ r.created_at }}</small>
+          </div>
+          <p class="card-text mb-0">{{ r.text }}</p>
+        </div>
+      </div>
+    {% else %}
+      <div class="alert alert-info">Отзывов пока нет — станьте первым!</div>
+    {% endfor %}
+  </div>
+
+  <div class="col-lg-4">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white fw-semibold">✍️ Оставить отзыв</div>
+      <div class="card-body">
+        {% if current_user %}
+          <form method="post" action="{{ url_for('reviews_add') }}" class="needs-validation" novalidate>
+            <div class="mb-3">
+              <label class="form-label">Ваш отзыв</label>
+              <textarea class="form-control" name="text" rows="5" minlength="10" maxlength="1000" required></textarea>
+              <div class="invalid-feedback">Отзыв — от 10 до 1000 символов.</div>
+            </div>
+            <button class="btn btn-accent w-100" type="submit">Опубликовать</button>
+          </form>
+          <div class="form-text mt-2">
+            Отзыв будет опубликован под именем <b>{{ current_user.full_name }}</b>.
+          </div>
+        {% else %}
+          <p>
+            Отзывы могут оставлять только зарегистрированные пользователи —
+            так мы защищаем гостевую книгу от спама.
+          </p>
+          <a class="btn btn-accent w-100" href="{{ url_for('login', next='/reviews') }}">Войти</a>
+          <a class="btn btn-outline-accent w-100 mt-2" href="{{ url_for('register') }}">Регистрация</a>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card shadow-sm mt-3">
+      <div class="card-header bg-white fw-semibold">📄 Отзывы в XML</div>
+      <div class="card-body">
+        Все отзывы доступны в формате XML:
+        <a href="{{ url_for('xml_reviews') }}">xml/reviews.xml</a>
+        (оформление через <a href="{{ url_for('xml_info') }}">XML-портал</a>).
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

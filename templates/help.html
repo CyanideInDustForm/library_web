@@ -1,0 +1,97 @@
+<!-- templates/help.html — помощь библиотеке -->
+{% extends "base.html" %}
+{% block title %}Помощь библиотеке — {{ site.name }}{% endblock %}
+{% block content %}
+
+<h2 class="section-title">Помощь библиотеке</h2>
+
+<p class="lead">
+  Библиотека — общее достояние города, и каждый может внести свой вклад
+  в её развитие. Вот несколько способов помочь.
+</p>
+
+<div class="row g-4">
+  <div class="col-md-4">
+    <div class="card shadow-sm h-100 achievement-card">
+      <div class="card-body">
+        <h5 class="card-title">📖 Передать книги</h5>
+        <p class="card-text">
+          Примем издания в хорошем состоянии: современную прозу, справочники,
+          детские книги. Приносите на абонемент в любой будний день —
+          библиотекарь оценит фонд и выдаст благодарность.
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card shadow-sm h-100 achievement-card">
+      <div class="card-body">
+        <h5 class="card-title">🙋 Стать волонтёром</h5>
+        <p class="card-text">
+          Помощь нужна на мероприятиях: встречи гостей, организация выставок,
+          детские программы. Заполните заявку на абонементе или напишите нам
+          на <a href="mailto:{{ site.email }}">{{ site.email }}</a>.
+        </p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card shadow-sm h-100 achievement-card">
+      <div class="card-body">
+        <h5 class="card-title">💡 Предложить идею</h5>
+        <p class="card-text">
+          Какой клуб открыть? Какую лекцию послушать? Каких книг не хватает
+          в фонде? Оставьте отзыв в <a href="{{ url_for('reviews') }}">гостевой книге</a> —
+          мы читаем всё.
+        </p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<h4 class="section-title mt-4">Частые вопросы</h4>
+<div class="accordion" id="helpFaq">
+  <div class="accordion-item">
+    <h2 class="accordion-header">
+      <button class="accordion-button" data-bs-toggle="collapse" data-bs-target="#faq1">
+        Принимаете ли вы старые книги и журналы?
+      </button>
+    </h2>
+    <div id="faq1" class="accordion-collapse collapse show" data-bs-parent="#helpFaq">
+      <div class="accordion-body">
+        Да, если издание ценное или в хорошем состоянии. Редкие издания
+        передаются в краеведческий отдел, остальные пополняют фонд или
+        участвуют в акции «Книгодарение».
+      </div>
+    </div>
+  </div>
+  <div class="accordion-item">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed" data-bs-toggle="collapse" data-bs-target="#faq2">
+        Можно ли помочь дистанционно?
+      </button>
+    </h2>
+    <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#helpFaq">
+      <div class="accordion-body">
+        Да: расскажите о библиотеке друзьям, подпишитесь на
+        <a href="{{ url_for('rss_feed') }}">RSS-ленту новостей</a>,
+        оставляйте отзывы — это тоже поддержка.
+      </div>
+    </div>
+  </div>
+  <div class="accordion-item">
+    <h2 class="accordion-header">
+      <button class="accordion-button collapsed" data-bs-toggle="collapse" data-bs-target="#faq3">
+        Есть ли благодарности для помощников?
+      </button>
+    </h2>
+    <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#helpFaq">
+      <div class="accordion-body">
+        Волонтёрам выдаются сертификаты, а самых активных мы приглашаем
+        на торжественные мероприятия библиотеки.
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

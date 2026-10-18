@@ -1,0 +1,37 @@
+<!-- templates/login.html — вход на сайт -->
+{% extends "base.html" %}
+{% block title %}Вход — {{ site.name }}{% endblock %}
+{% block content %}
+
+<div class="row justify-content-center">
+  <div class="col-md-6 col-lg-5">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white fw-semibold">Вход на сайт</div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('login_post') }}" class="needs-validation" novalidate>
+          <input type="hidden" name="next" value="{{ next }}">
+          <div class="mb-3">
+            <label class="form-label">Логин</label>
+            <input class="form-control" name="username" required>
+            <div class="invalid-feedback">Введите логин.</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Пароль</label>
+            <input class="form-control" type="password" name="password" required>
+            <div class="invalid-feedback">Введите пароль.</div>
+          </div>
+          <button class="btn btn-accent w-100" type="submit">Войти</button>
+        </form>
+        <div class="form-text mt-3 text-center">
+          Нет аккаунта? <a href="{{ url_for('register') }}">Зарегистрироваться</a>
+        </div>
+        <div class="alert alert-light border small mt-3 mb-0">
+          Тестовые пользователи: <code>nastya / 12345</code>, <code>reader / 12345</code>,
+          <code>bookworm / 12345</code>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

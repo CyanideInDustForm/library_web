@@ -1,0 +1,102 @@
+<!-- templates/events.html — мероприятия: календарь + запись -->
+{% extends "base.html" %}
+{% block title %}Мероприятия — {{ site.name }}{% endblock %}
+{% block content %}
+
+<h2 class="section-title">Мероприятия библиотеки</h2>
+
+{% if not current_user %}
+  <div class="alert alert-info">
+    Запись на мероприятия доступна только зарегистрированным пользователям —
+    <a href="{{ url_for('login', next='/events') }}">войдите</a> или
+    <a href="{{ url_for('register') }}">зарегистрируйтесь</a> (это займёт минуту).
+  </div>
+{% endif %}
+
+<div class="row g-4">
+  <!-- ==================== Календарь месяца ==================== -->
+  <div class="col-lg-5">
+    <div class="card shadow-sm">
+      <div class="card-header bg-white d-flex justify-content-between align-items-center">
+        <a class="btn btn-sm btn-outline-accent" href="{{ url_for('events', month=prev_month) }}">←</a>
+        <b>{{ month_title }}</b>
+        <a class="btn btn-sm btn-outline-accent" href="{{ url_for('events', month=next_month) }}">→</a>
+      </div>
+      <div class="card-body">
+        <table class="table table-bordered calendar text-center mb-0">
+          <thead>
+            <tr class="table-dark">
+              <th>Пн</th><th>Вт</th><th>Ср</th><th>Чт</th><th>Пт</th><th>Сб</th><th>Вс</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for i in range(0, cells|length, 7) %}
+              <tr>
+                {% for d in cells[i:i+7] %}
+                  {% if d %}
+                    {% set day_events = by_day.get(d, []) %}
+                    <td class="{{ 'calendar-event-day' if day_events }}">
+                      <div>{{ d }}</div>
+                      {% for e in day_events %}
+                        <a class="badge text-bg-accent text-decoration-none d-block my-1"
+                           href="#event-{{ e.id }}" title="{{ e.title }}">
+                          {{ e.event_date[11:16] }} {{ e.title|truncate(18, True) }}
+                        </a>
+                      {% endfor %}
+                    </td>
+                  {% else %}
+                    <td class="text-muted calendar-empty"></td>
+                  {% endif %}
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        <div class="form-text mt-2">Дни с мероприятиями подсвечены — кликните, чтобы перейти к описанию.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== Список мероприятий ==================== -->
+  <div class="col-lg-7">
+    {% for e in events %}
+      <div class="card shadow-sm mb-3" id="event-{{ e.id }}">
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-start">
+            <h5 class="card-title">{{ e.title }}</h5>
+            <span class="badge {{ 'text-bg-success' if e.left > 0 else 'text-bg-danger' }}">
+              {% if e.left > 0 %}свободно мест: {{ e.left }}{% else %}мест нет{% endif %}
+            </span>
+          </div>
+          <p class="card-text">{{ e.description }}</p>
+          <div class="small text-muted mb-3">
+            🕒 {{ e.event_date }} · 📍 {{ e.place }} · мест: {{ e.seats }}
+          </div>
+
+          {% if e.id in my_event_ids %}
+            <button class="btn btn-success" disabled>✓ Вы записаны</button>
+            <span class="small text-muted ms-2">Управлять записями можно в <a href="{{ url_for('account') }}">личном кабинете</a>.</span>
+          {% elif e.left <= 0 %}
+            <button class="btn btn-secondary" disabled>Все места заняты</button>
+          {% elif current_user %}
+            <form method="post" action="{{ url_for('events_register', event_id=e.id) }}" class="d-inline">
+              <button class="btn btn-accent" type="submit">Записаться</button>
+            </form>
+          {% else %}
+            <a class="btn btn-outline-accent" href="{{ url_for('login', next='/events') }}">Войдите, чтобы записаться</a>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+
+    <div class="card shadow-sm">
+      <div class="card-header bg-white fw-semibold">📄 Афиша в XML</div>
+      <div class="card-body">
+        Предстоящие мероприятия в машиночитаемом формате:
+        <a href="{{ url_for('xml_events') }}">xml/events.xml</a>.
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
