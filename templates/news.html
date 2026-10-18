@@ -39,8 +39,18 @@
         </form>
         <div class="form-text mt-2">
           Новость сохраняется в таблицу <code>news</code> базы данных и сразу
-          появляется на странице, в поисковике и по сайту.
+          появляется на странице, в поисковике и в XML-ленте.
         </div>
+      </div>
+    </div>
+
+    <div class="card shadow-sm mt-3">
+      <div class="card-header bg-white fw-semibold">📄 XML-лента</div>
+      <div class="card-body">
+        Эти же новости доступны в машиночитаемом формате:
+        <a href="{{ url_for('xml_news') }}">xml/news.xml</a>
+        и в <a href="{{ url_for('rss_feed') }}">RSS-ленте</a>
+        (оформление — через <a href="{{ url_for('xml_info') }}">XML-портал</a>).
       </div>
     </div>
   </div>

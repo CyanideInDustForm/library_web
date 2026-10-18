@@ -278,7 +278,7 @@ def seed_db(filename: str, salt: int):
 
     con.commit()
     con.close()
-    print(f"OK: seeded {DB_PATH}")
+    print(f"OK: seeded {db_path}")
 
 
 def main():
