@@ -10,7 +10,10 @@ from werkzeug.security import generate_password_hash
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(ROOT, "data")
 SCHEMA_PATH = os.path.join(ROOT, "schema.sql")
-DB_PATH = os.path.join(DATA_DIR, "library.sqlite3")
+DATABASES = {
+    "main": ("library_sqlite.db", 10),     # (имя файла, «соль» генерации данных)
+    "extra": ("library_postgres.db", 20),
+}
 
 STATUSES = [
     (1, "выдано"),
@@ -154,15 +157,17 @@ def random_date_between(start: date, end: date) -> date:
     return start + timedelta(days=random.randint(0, max(days, 0)))
 
 
-def main():
-    ensure_dirs()
 
-    if os.path.exists(DB_PATH):
-        os.remove(DB_PATH)
 
-    salt = 10
+def seed_db(filename: str, salt: int):
+    """Создаёт (пересоздаёт) файл БД и наполняет его данными."""
+    db_path = os.path.join(DATA_DIR, filename)
+
+    if os.path.exists(db_path):
+        os.remove(db_path)
+
     schema = read_schema()
-    con = sqlite3.connect(DB_PATH)
+    con = sqlite3.connect(db_path)
     con.row_factory = sqlite3.Row
     con.execute("PRAGMA foreign_keys = ON;")
 
@@ -274,6 +279,12 @@ def main():
     con.commit()
     con.close()
     print(f"OK: seeded {DB_PATH}")
+
+
+def main():
+    ensure_dirs()
+    for filename, salt in DATABASES.values():
+        seed_db(filename, salt)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,21 @@
+<!-- templates/_db_switch.html — переключатель источника данных (между БД) -->
+<div class="card shadow-sm mb-3 db-switch">
+  <div class="card-body d-flex flex-wrap align-items-center gap-2 py-2">
+    <span class="fw-semibold">СУБД:</span>
+    <div class="btn-group btn-group-sm" role="group" aria-label="Выбор базы данных">
+      {% for key, info in db_files.items() %}
+        {% if key == current_db_key %}
+          <span class="btn btn-accent active">{{ info.engine }}</span>
+        {% else %}
+          <a class="btn btn-outline-accent"
+             href="{{ url_for('db_switch', key=key, next=request.full_path) }}"
+             title="{{ info.file }}">{{ info.engine }}</a>
+        {% endif %}
+      {% endfor %}
+    </div>
+    <span class="text-muted small ms-auto">
+      Текущая база: <code>{{ db_files[current_db_key].file }}</code> ·
+      переключение меняет источник данных всего приложения (выбор хранится в сессии).
+    </span>
+  </div>
+</div>
