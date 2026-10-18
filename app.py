@@ -11,10 +11,11 @@ import xml.etree.ElementTree as ET
 from datetime import date, datetime, timedelta, timezone
 from functools import wraps
 from typing import Any, Dict, List, Optional, Tuple
+from xml.sax.saxutils import escape as xml_escape
 
 from flask import (
     Flask, g, render_template, request, redirect, url_for,
-    session, flash, jsonify,
+    session, flash, jsonify, Response,
 )
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -302,6 +303,16 @@ def create_app() -> Flask:
             "current_db_key": current_db_key(),
         }
 
+    # ------------------------- Авторизация -------------------------
+    def login_required(view):
+        @wraps(view)
+        def wrapped(*args, **kwargs):
+            if not session.get("user_id"):
+                flash("Для этого действия нужно войти на сайт.", "warning")
+                return redirect(url_for("login", next=request.path))
+            return view(*args, **kwargs)
+        return wrapped
+
     # ------------------------- Валидация выдачи -------------------------
     def parse_date(s: str) -> date:
         return date.fromisoformat(s)
@@ -452,87 +463,206 @@ def create_app() -> Flask:
             "site_search.html", query=query, words=words, results=results
         )
 
-    # # =========================================================
-    # #   XML-ДОСТУП К ДАННЫМ
-    # # =========================================================
-    # @app.get("/xml")
-    # def xml_info():
-    #     feeds = [
-    #         {"url": url_for("xml_news"), "title": "Новости библиотеки", "desc": "Все новости из базы данных в формате XML (оформляются в браузере через XSL)."},
-    #         {"url": url_for("xml_books"), "title": "Книжный фонд", "desc": "Каталог книг с авторами, годом издания и ISBN."},
-    #         {"url": url_for("xml_loans"), "title": "Журнал выдач", "desc": "Последние выдачи книг читателям со статусами."},
-    #     ]
-    #     return render_template("xml.html", feeds=feeds)
+    # =========================================================
+    #   XML-ДОСТУП К ДАННЫМ (портал, фиды, RSS)
+    # =========================================================
+    @app.get("/xml")
+    def xml_info():
+        feeds = [
+            {
+                "url": url_for("xml_news"), "title": "Новости библиотеки",
+                "desc": "Все новости из базы данных. Оформление — XSL-таблица, "
+                        "структура проверяется XSD-схемой.",
+                "tags": "item → id, title, text, published",
+                "xsd": "/static/xml/news.xsd", "root": "news",
+            },
+            {
+                "url": url_for("xml_books"), "title": "Книжный фонд",
+                "desc": "Каталог книг. Два варианта XSL-представления: по названию и по году издания.",
+                "tags": "item → inventory, title, author, year, isbn",
+                "xsd": "/static/xml/books.xsd", "root": "books",
+                "variants": [
+                    {"label": "по названию", "url": url_for("xml_books")},
+                    {"label": "по году ↓", "url": url_for("xml_books", sort="year")},
+                ],
+            },
+            {
+                "url": url_for("xml_loans"), "title": "Журнал выдач",
+                "desc": "Последние 100 выдач книг читателям со статусами.",
+                "tags": "item → reader, book, librarian, status, issue, due, returned",
+                "xsd": "/static/xml/loans.xsd", "root": "loans",
+            },
+            {
+                "url": url_for("xml_events"), "title": "Афиша мероприятий",
+                "desc": "Предстоящие мероприятия библиотеки с местами и вместимостью.",
+                "tags": "item → id, title, description, date, place, seats, free",
+                "xsd": "/static/xml/events.xsd", "root": "events",
+            },
+            {
+                "url": url_for("xml_reviews"), "title": "Отзывы читателей",
+                "desc": "Гостевая книга: отзывы зарегистрированных пользователей.",
+                "tags": "item → id, author, text, created",
+                "xsd": "/static/xml/reviews.xsd", "root": "reviews",
+            },
+        ]
+        return render_template("xml.html", feeds=feeds)
 
-    # def xml_response(payload: str, feed_name: str) -> Response:
-    #     xml = (
-    #         '<?xml version="1.0" encoding="UTF-8"?>\n'
-    #         f'<?xml-stylesheet type="text/xsl" href="/static/news.xsl"?>\n'
-    #         f'<{feed_name} generated="{datetime.now().isoformat(timespec="seconds")}">\n'
-    #         f'{payload}\n</{feed_name}>'
-    #     )
-    #     return Response(xml, mimetype="application/xml; charset=utf-8")
+    def xml_response(payload: str, feed_name: str, xsl: str = "table",
+                     xsd: Optional[str] = None) -> Response:
+        """Собирает XML-документ: декларация + XSL-таблица + XSD-схема + корневой элемент."""
+        pi = f'<?xml-stylesheet type="text/xsl" href="/static/xml/{xsl}.xsl"?>\n'
+        if xsd:
+            pi += (f'<?xml-model href="/static/xml/{xsd}.xsd" '
+                   f'type="application/xml" schematypens="http://www.w3.org/2001/XMLSchema"?>\n')
+        xml = (
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            f'{pi}'
+            f'<{feed_name} generated="{datetime.now().isoformat(timespec="seconds")}">\n'
+            f'{payload}\n</{feed_name}>'
+        )
+        return Response(xml, mimetype="application/xml; charset=utf-8")
 
-    # @app.get("/xml/news.xml")
-    # def xml_news():
-    #     items = q_all(
-    #         "SELECT id, title, body, published_at FROM news ORDER BY published_at DESC;"
-    #     )
-    #     payload = "\n".join(
-    #         "  <item>\n"
-    #         f"    <id>{n['id']}</id>\n"
-    #         f"    <title>{xml_escape(n['title'])}</title>\n"
-    #         f"    <text>{xml_escape(n['body'])}</text>\n"
-    #         f"    <published>{n['published_at']}</published>\n"
-    #         "  </item>"
-    #         for n in items
-    #     )
-    #     return xml_response(payload, "news")
+    @app.get("/xml/news.xml")
+    def xml_news():
+        items = q_all(
+            "SELECT id, title, body, published_at FROM news ORDER BY published_at DESC;"
+        )
+        payload = "\n".join(
+            "  <item>\n"
+            f"    <id>{n['id']}</id>\n"
+            f"    <title>{xml_escape(n['title'])}</title>\n"
+            f"    <text>{xml_escape(n['body'])}</text>\n"
+            f"    <published>{n['published_at']}</published>\n"
+            "  </item>"
+            for n in items
+        )
+        return xml_response(payload, "news", xsd="news")
 
-    # @app.get("/xml/books.xml")
-    # def xml_books():
-    #     items = q_all(
-    #         "SELECT inventory_number, title, author, publish_year, isbn "
-    #         "FROM books ORDER BY title;"
-    #     )
-    #     payload = "\n".join(
-    #         "  <item>\n"
-    #         f"    <inventory>{b['inventory_number']}</inventory>\n"
-    #         f"    <title>{xml_escape(b['title'])}</title>\n"
-    #         f"    <author>{xml_escape(b['author'])}</author>\n"
-    #         f"    <year>{b['publish_year']}</year>\n"
-    #         f"    <isbn>{b['isbn']}</isbn>\n"
-    #         "  </item>"
-    #         for b in items
-    #     )
-    #     return xml_response(payload, "books")
+    @app.get("/xml/books.xml")
+    def xml_books():
+        # ?sort=year — серверная сортировка по году издания + другая XSL-таблица
+        sort = request.args.get("sort", "title")
+        if sort == "year":
+            order, xsl = "publish_year DESC, title ASC", "books-year"
+        else:
+            order, xsl = "title ASC", "books"
+        items = q_all(
+            "SELECT inventory_number, title, author, publish_year, isbn "
+            f"FROM books ORDER BY {order};"
+        )
+        payload = "\n".join(
+            "  <item>\n"
+            f"    <inventory>{b['inventory_number']}</inventory>\n"
+            f"    <title>{xml_escape(b['title'])}</title>\n"
+            f"    <author>{xml_escape(b['author'])}</author>\n"
+            f"    <year>{b['publish_year']}</year>\n"
+            f"    <isbn>{b['isbn']}</isbn>\n"
+            "  </item>"
+            for b in items
+        )
+        return xml_response(payload, "books", xsl=xsl, xsd="books")
 
-    # @app.get("/xml/loans.xml")
-    # def xml_loans():
-    #     items = q_all("""
-    #         SELECT l.id, r.full_name AS reader, b.title AS book,
-    #                lb.full_name AS librarian, s.title AS status,
-    #                l.issue_date, l.due_date, l.return_date
-    #         FROM loans l
-    #         JOIN readers r ON r.id = l.reader_id
-    #         JOIN books b ON b.id = l.book_id
-    #         JOIN librarians lb ON lb.id = l.librarian_id
-    #         JOIN statuses s ON s.id = l.status_id
-    #         ORDER BY l.issue_date DESC, l.id DESC LIMIT 100;
-    #     """)
-    #     payload = "\n".join(
-    #         "  <item>\n"
-    #         f"    <reader>{xml_escape(l['reader'])}</reader>\n"
-    #         f"    <book>{xml_escape(l['book'])}</book>\n"
-    #         f"    <librarian>{xml_escape(l['librarian'])}</librarian>\n"
-    #         f"    <status>{xml_escape(l['status'])}</status>\n"
-    #         f"    <issue>{l['issue_date']}</issue>\n"
-    #         f"    <due>{l['due_date']}</due>\n"
-    #         f"    <returned>{l['return_date'] or ''}</returned>\n"
-    #         "  </item>"
-    #         for l in items
-    #     )
-    #     return xml_response(payload, "loans")
+    @app.get("/xml/loans.xml")
+    def xml_loans():
+        items = q_all("""
+            SELECT l.id, r.full_name AS reader, b.title AS book,
+                   lb.full_name AS librarian, s.title AS status,
+                   l.issue_date, l.due_date, l.return_date
+            FROM loans l
+            JOIN readers r ON r.id = l.reader_id
+            JOIN books b ON b.id = l.book_id
+            JOIN librarians lb ON lb.id = l.librarian_id
+            JOIN statuses s ON s.id = l.status_id
+            ORDER BY l.issue_date DESC, l.id DESC LIMIT 100;
+        """)
+        payload = "\n".join(
+            "  <item>\n"
+            f"    <reader>{xml_escape(l['reader'])}</reader>\n"
+            f"    <book>{xml_escape(l['book'])}</book>\n"
+            f"    <librarian>{xml_escape(l['librarian'])}</librarian>\n"
+            f"    <status>{xml_escape(l['status'])}</status>\n"
+            f"    <issue>{l['issue_date']}</issue>\n"
+            f"    <due>{l['due_date']}</due>\n"
+            f"    <returned>{l['return_date'] or ''}</returned>\n"
+            "  </item>"
+            for l in items
+        )
+        return xml_response(payload, "loans", xsd="loans")
+
+    @app.get("/xml/events.xml")
+    def xml_events():
+        items = q_all("""
+            SELECT e.id, e.title, e.description, e.event_date, e.place, e.seats,
+                   COUNT(r.id) AS taken
+            FROM events e
+            LEFT JOIN event_registrations r ON r.event_id = e.id
+            GROUP BY e.id
+            ORDER BY e.event_date;
+        """)
+        payload = "\n".join(
+            "  <item>\n"
+            f"    <id>{e['id']}</id>\n"
+            f"    <title>{xml_escape(e['title'])}</title>\n"
+            f"    <description>{xml_escape(e['description'])}</description>\n"
+            f"    <date>{e['event_date']}</date>\n"
+            f"    <place>{xml_escape(e['place'])}</place>\n"
+            f"    <seats>{e['seats']}</seats>\n"
+            f"    <free>{e['seats'] - e['taken']}</free>\n"
+            "  </item>"
+            for e in items
+        )
+        return xml_response(payload, "events", xsl="events", xsd="events")
+
+    @app.get("/xml/reviews.xml")
+    def xml_reviews():
+        items = q_all("""
+            SELECT r.id, u.full_name, r.text, r.created_at
+            FROM reviews r
+            JOIN users u ON u.id = r.user_id
+            ORDER BY r.created_at DESC;
+        """)
+        payload = "\n".join(
+            "  <item>\n"
+            f"    <id>{r['id']}</id>\n"
+            f"    <author>{xml_escape(r['full_name'])}</author>\n"
+            f"    <text>{xml_escape(r['text'])}</text>\n"
+            f"    <created>{r['created_at']}</created>\n"
+            "  </item>"
+            for r in items
+        )
+        return xml_response(payload, "reviews", xsd="reviews")
+
+    @app.get("/rss.xml")
+    def rss_feed():
+        """RSS 2.0-лента новостей — читается любыми RSS-ридерами."""
+        items = q_all(
+            "SELECT id, title, body, published_at FROM news "
+            "ORDER BY published_at DESC LIMIT 20;"
+        )
+        base = request.host_url.rstrip("/")
+        channel_items = "\n".join(
+            "    <item>\n"
+            f"      <title>{xml_escape(n['title'])}</title>\n"
+            f"      <link>{base}{url_for('news')}#news-{n['id']}</link>\n"
+            f"      <guid>{base}{url_for('news')}#news-{n['id']}</guid>\n"
+            f"      <description>{xml_escape(n['body'])}</description>\n"
+            f"      <pubDate>{rss_pub_date(n['published_at'])}</pubDate>\n"
+            "    </item>"
+            for n in items
+        )
+        xml = (
+            '<?xml version="1.0" encoding="UTF-8"?>\n'
+            '<rss version="2.0">\n'
+            "  <channel>\n"
+            f"    <title>{xml_escape(SITE['name'])} — новости</title>\n"
+            f"    <link>{base}{url_for('news')}</link>\n"
+            f"    <description>Новости {xml_escape(SITE['name'].lower())}</description>\n"
+            f"    <language>ru</language>\n"
+            f"{channel_items}\n"
+            "  </channel>\n"
+            "</rss>"
+        )
+        return Response(xml, mimetype="application/rss+xml; charset=utf-8")
 
     # =========================================================
     #   ПРИЛОЖЕНИЕ К БД (выдача книг, поиск, администрирование)
