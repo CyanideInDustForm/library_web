@@ -22,6 +22,33 @@
   </div>
 </div>
 
+<h4 class="section-title">Экспорт новостей (ЛР 4)</h4>
+<div class="card shadow-sm mb-4">
+  <div class="card-body d-flex align-items-center gap-3 flex-wrap">
+    <div class="flex-grow-1">
+      <b>💾 Одни и те же данные — в трёх форматах</b>
+      <div class="text-muted small">Новости из базы выгружаются как XML, CSV (разделитель «;», первая строка —
+        список полей) и текстовый tagged-формат (записи в тегах <code>&lt;news&gt;</code>).</div>
+    </div>
+    <a class="btn btn-outline-accent btn-sm" href="{{ url_for('export_news_xml') }}" target="_blank">news.xml</a>
+    <a class="btn btn-outline-accent btn-sm" href="{{ url_for('export_news_csv') }}" target="_blank">news.csv</a>
+    <a class="btn btn-outline-accent btn-sm" href="{{ url_for('export_news_tagged') }}" target="_blank">news-tagged.txt</a>
+  </div>
+</div>
+
+<h4 class="section-title">Лабораторная работа №2: ручной XML + JavaScript</h4>
+<div class="card shadow-sm mb-4">
+  <div class="card-body d-flex align-items-center gap-3 flex-wrap">
+    <div class="flex-grow-1">
+      <b>🛠 XML-файл, созданный вручную (7 элементов)</b>
+      <div class="text-muted small">Без базы данных: статический файл, который браузер разбирает
+        JavaScript'ом и показывает таблицей. Есть поиск по символам и сортировка по всем колонкам.</div>
+    </div>
+    <a class="btn btn-accent" href="{{ url_for('lab2_xml') }}">Открыть JS-таблицу</a>
+    <a class="btn btn-outline-accent" href="{{ url_for('static', filename='xml/handmade.xml') }}" target="_blank">Сам XML-файл</a>
+  </div>
+</div>
+
 <h4 class="section-title">XML-ленты</h4>
 <div class="row g-4">
   {% for f in feeds %}

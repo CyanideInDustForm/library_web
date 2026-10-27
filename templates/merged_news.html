@@ -1,0 +1,74 @@
+<!-- templates/merged_news.html — ЛР 4: объединённые новости (БД + внешняя RSS) -->
+{% extends "base.html" %}
+{% block title %}Объединённые новости — {{ site.name }}{% endblock %}
+{% block content %}
+
+<h2 class="section-title">Объединённые новости</h2>
+<p class="text-muted">Лабораторная работа №4: на одной странице показаны новости нашей библиотеки
+   (из базы данных) и материалы внешней RSS-ленты. Адрес ленты можно заменить в поле ниже —
+   подойдёт любая лента в формате RSS 2.0 или Atom.</p>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-header bg-white fw-semibold">Источник новостной ленты</div>
+  <div class="card-body">
+    <form method="get" action="{{ url_for('merged_news') }}" class="row g-2 align-items-end">
+      <div class="col-md-9">
+        <label class="form-label" for="feed">URL RSS-ленты</label>
+        <input class="form-control" id="feed" type="url" name="feed"
+               value="{{ feed_url }}" placeholder="https://example.com/rss.xml" required>
+      </div>
+      <div class="col-md-3 d-grid">
+        <button class="btn btn-accent" type="submit">Загрузить ленту</button>
+      </div>
+    </form>
+    <div class="form-text mt-2">
+      Примеры для проверки:
+      <a href="{{ url_for('merged_news', feed='https://lenta.ru/rss/news') }}">lenta.ru</a> ·
+      <a href="{{ url_for('merged_news', feed='https://www.cbr.ru/scripts/XML_daily.asp') }}">курсы ЦБ</a> ·
+      <a href="{{ url_for('merged_news', feed='https://ria.ru/export/rss2/index.xml') }}">РИА Новости</a> ·
+      <a href="{{ url_for('rss_feed') }}">наша собственная /rss.xml</a>
+    </div>
+  </div>
+</div>
+
+{% if ext_error %}
+  <div class="alert alert-warning">{{ ext_error }} Ниже показаны новости нашего сайта.</div>
+{% elif ext_title %}
+  <div class="alert alert-success">
+    Внешняя лента загружена: <strong>{{ ext_title }}</strong>
+    (<code>{{ feed_url }}</code>)
+  </div>
+{% endif %}
+
+<div class="card shadow-sm">
+  <div class="card-header bg-white fw-semibold">
+    Лента: {{ items|length }} новостей из двух источников, отсортированы по дате
+    <span class="float-end">
+      <a class="btn btn-outline-accent btn-sm" href="{{ url_for('export_news_xml') }}" target="_blank">XML</a>
+      <a class="btn btn-outline-accent btn-sm" href="{{ url_for('export_news_csv') }}" target="_blank">CSV</a>
+      <a class="btn btn-outline-accent btn-sm" href="{{ url_for('export_news_tagged') }}" target="_blank">TXT</a>
+    </span>
+  </div>
+  <div class="list-group list-group-flush">
+    {% for it in items %}
+      <div class="list-group-item">
+        <div class="d-flex w-100 justify-content-between align-items-start gap-2">
+          <h6 class="mb-1">
+            {% if it.link %}
+              <a href="{{ it.link }}" {% if not it.own %}target="_blank" rel="noopener"{% endif %}>{{ it.title }}</a>
+            {% else %}
+              {{ it.title }}
+            {% endif %}
+          </h6>
+          <small class="text-nowrap text-muted">{{ it.published }}</small>
+        </div>
+        <p class="mb-1 small text-muted">{{ it.text|truncate(220) }}</p>
+        <span class="badge {{ 'text-bg-success' if it.own else 'text-bg-secondary' }}">{{ it.source }}</span>
+      </div>
+    {% else %}
+      <div class="list-group-item text-muted">Новостей пока нет.</div>
+    {% endfor %}
+  </div>
+</div>
+
+{% endblock %}

@@ -5,8 +5,6 @@
 
 <h2 class="section-title">Поиск по базе данных</h2>
 
-{% include "_db_switch.html" %}
-
 <div class="d-flex flex-wrap gap-2 mb-3">
   <a class="btn {{ 'btn-accent' if mode=='one' else 'btn-outline-accent' }}"
      href="{{ url_for('db_search', mode='one', entity='readers') }}">По одной таблице</a>
@@ -172,6 +170,41 @@
       GROUP BY librarian_id, COUNT(loans.id)
     </div>
   </div>
+
+  {% if results %}
+  <div class="card shadow-sm mb-3">
+    <div class="card-header bg-white fw-semibold">📊 Диаграмма (Chart.js)</div>
+    <div class="card-body">
+      <div style="max-width: 900px;"><canvas id="aggChart" height="120"></canvas></div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script>
+    document.addEventListener("DOMContentLoaded", () => {
+      const el = document.getElementById("aggChart");
+      if (!el || typeof Chart === "undefined") return;
+      const rows = {{ results|tojson }};
+      new Chart(el, {
+        type: "bar",
+        data: {
+          labels: rows.map((r) => r.librarian_name),
+          datasets: [{
+            label: "Количество выдач",
+            data: rows.map((r) => r.loans_count),
+            backgroundColor: "rgba(233, 133, 39, 0.75)",
+            borderColor: "#e98527",
+            borderWidth: 1
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: { legend: { display: false } },
+          scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
+        }
+      });
+    });
+  </script>
+  {% endif %}
 {% endif %}
 
 <div class="card shadow-sm">

@@ -1,0 +1,104 @@
+<!-- templates/lab2_xml.html — ЛР 2: ручной XML-файл, визуализация JS-таблицей -->
+{% extends "base.html" %}
+{% block title %}ЛР 2: XML + JS-таблица — {{ site.name }}{% endblock %}
+{% block content %}
+
+<h2 class="section-title">Лабораторная работа №2: XML-файл и JavaScript-таблица</h2>
+<p class="text-muted">Файл <code>static/xml/handmade.xml</code> создан вручную (не генерируется из базы данных)
+   и содержит 7 элементов <code>&lt;book&gt;</code> по 6 тегов в каждом. Таблица ниже строится
+   прямо в браузере: JavaScript загружает XML через <code>fetch</code>, разбирает его
+   <code>DOMParser</code>'ом и выводит в виде таблицы.</p>
+
+<div class="card shadow-sm mb-3">
+  <div class="card-header bg-white fw-semibold">Содержимое handmade.xml</div>
+  <div class="card-body">
+    <div class="row g-2 align-items-center mb-3">
+      <div class="col-md-8">
+        <input id="lab2-search" class="form-control" type="search"
+               placeholder="Поиск по символам: введите часть слова из любой колонки (например: «роман», «1967», «толстой»)…">
+      </div>
+      <div class="col-md-4">
+        <span id="lab2-status" class="text-muted small">Загрузка XML…</span>
+      </div>
+    </div>
+
+    <div class="table-responsive">
+      <table id="lab2-table" class="table table-striped table-hover align-middle" data-src="{{ url_for('static', filename='xml/handmade.xml') }}">
+        <thead></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+
+    <div class="form-text">
+      Клик по заголовку колонки сортирует таблицу (повторный клик — в обратном порядке).
+      Числовые колонки («id», «year», «pages») сортируются как числа, остальные — по алфавиту.
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-header bg-white fw-semibold">Исходный XML</div>
+  <div class="card-body">
+    <pre class="small bg-light border rounded p-3 mb-0" style="max-height: 320px; overflow: auto;">&lt;?xml version="1.0" encoding="UTF-8"?&gt;
+&lt;library&gt;
+  &lt;book&gt;
+    &lt;id&gt;1&lt;/id&gt;
+    &lt;title&gt;Война и мир&lt;/title&gt;
+    &lt;author&gt;Лев Толстой&lt;/author&gt;
+    &lt;genre&gt;Роман-эпопея&lt;/genre&gt;
+    &lt;year&gt;1869&lt;/year&gt;
+    &lt;pages&gt;1225&lt;/pages&gt;
+  &lt;/book&gt;
+  &lt;book&gt;
+    &lt;id&gt;2&lt;/id&gt;
+    &lt;title&gt;Мастер и Маргарита&lt;/title&gt;
+    &lt;author&gt;Михаил Булгаков&lt;/author&gt;
+    &lt;genre&gt;Роман&lt;/genre&gt;
+    &lt;year&gt;1967&lt;/year&gt;
+    &lt;pages&gt;480&lt;/pages&gt;
+  &lt;/book&gt;
+  &lt;book&gt;
+    &lt;id&gt;3&lt;/id&gt;
+    &lt;title&gt;Преступление и наказание&lt;/title&gt;
+    &lt;author&gt;Фёдор Достоевский&lt;/author&gt;
+    &lt;genre&gt;Роман&lt;/genre&gt;
+    &lt;year&gt;1866&lt;/year&gt;
+    &lt;pages&gt;672&lt;/pages&gt;
+  &lt;/book&gt;
+  &lt;book&gt;
+    &lt;id&gt;4&lt;/id&gt;
+    &lt;title&gt;451 градус по Фаренгейту&lt;/title&gt;
+    &lt;author&gt;Рэй Брэдбери&lt;/author&gt;
+    &lt;genre&gt;Антиутопия&lt;/genre&gt;
+    &lt;year&gt;1953&lt;/year&gt;
+    &lt;pages&gt;256&lt;/pages&gt;
+  &lt;/book&gt;
+  &lt;book&gt;
+    &lt;id&gt;5&lt;/id&gt;
+    &lt;title&gt;Сто лет одиночества&lt;/title&gt;
+    &lt;author&gt;Габриэль Гарсиа Маркес&lt;/author&gt;
+    &lt;genre&gt;Магический реализм&lt;/genre&gt;
+    &lt;year&gt;1967&lt;/year&gt;
+    &lt;pages&gt;417&lt;/pages&gt;
+  &lt;/book&gt;
+  &lt;book&gt;
+    &lt;id&gt;6&lt;/id&gt;
+    &lt;title&gt;Атлант расправил плечи&lt;/title&gt;
+    &lt;author&gt;Айн Рэнд&lt;/author&gt;
+    &lt;genre&gt;Философский роман&lt;/genre&gt;
+    &lt;year&gt;1957&lt;/year&gt;
+    &lt;pages&gt;1168&lt;/pages&gt;
+  &lt;/book&gt;
+  &lt;book&gt;
+    &lt;id&gt;7&lt;/id&gt;
+    &lt;title&gt;Гарри Поттер и философский камень&lt;/title&gt;
+    &lt;author&gt;Джоан Роулинг&lt;/author&gt;
+    &lt;genre&gt;Фэнтези&lt;/genre&gt;
+    &lt;year&gt;1997&lt;/year&gt;
+    &lt;pages&gt;432&lt;/pages&gt;
+  &lt;/book&gt;
+&lt;/library&gt;</pre>
+  </div>
+</div>
+
+{% endblock %}

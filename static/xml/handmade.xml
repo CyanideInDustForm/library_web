@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ЛР 2: XML-файл создан вручную (не генерируется из БД).
+     7 элементов <book>, у каждого 6 тегов. Визуализация — JS-таблица на /lab2-xml. -->
+<library>
+  <book>
+    <id>1</id>
+    <title>Война и мир</title>
+    <author>Лев Толстой</author>
+    <genre>Роман-эпопея</genre>
+    <year>1869</year>
+    <pages>1225</pages>
+  </book>
+  <book>
+    <id>2</id>
+    <title>Мастер и Маргарита</title>
+    <author>Михаил Булгаков</author>
+    <genre>Роман</genre>
+    <year>1967</year>
+    <pages>480</pages>
+  </book>
+  <book>
+    <id>3</id>
+    <title>Преступление и наказание</title>
+    <author>Фёдор Достоевский</author>
+    <genre>Роман</genre>
+    <year>1866</year>
+    <pages>672</pages>
+  </book>
+  <book>
+    <id>4</id>
+    <title>451 градус по Фаренгейту</title>
+    <author>Рэй Брэдбери</author>
+    <genre>Антиутопия</genre>
+    <year>1953</year>
+    <pages>256</pages>
+  </book>
+  <book>
+    <id>5</id>
+    <title>Сто лет одиночества</title>
+    <author>Габриэль Гарсиа Маркес</author>
+    <genre>Магический реализм</genre>
+    <year>1967</year>
+    <pages>417</pages>
+  </book>
+  <book>
+    <id>6</id>
+    <title>Атлант расправил плечи</title>
+    <author>Айн Рэнд</author>
+    <genre>Философский роман</genre>
+    <year>1957</year>
+    <pages>1168</pages>
+  </book>
+  <book>
+    <id>7</id>
+    <title>Гарри Поттер и философский камень</title>
+    <author>Джоан Роулинг</author>
+    <genre>Фэнтези</genre>
+    <year>1997</year>
+    <pages>432</pages>
+  </book>
+</library>

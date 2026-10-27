@@ -145,4 +145,99 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
   }
+
+  /* ==================== ЛР 2: JS-таблица из handmade.xml ==================== */
+  const lab2Table = document.getElementById("lab2-table");
+  if (lab2Table) {
+    const searchInput = document.getElementById("lab2-search");
+    const statusEl = document.getElementById("lab2-status");
+    let rows = [];        // массив объектов {cells: [...], el: <tr>}
+    let sortCol = -1;
+    let sortAsc = true;
+
+    const numeric = (v) => {
+      const n = parseFloat(String(v).replace(/\s/g, "").replace(",", "."));
+      return Number.isNaN(n) ? null : n;
+    };
+
+    const applyFilter = () => {
+      const q = (searchInput?.value || "").trim().toLowerCase();
+      let shown = 0;
+      rows.forEach((r) => {
+        const hit = !q || r.cells.some((c) => c.toLowerCase().includes(q));
+        r.el.style.display = hit ? "" : "none";
+        if (hit) shown++;
+      });
+      if (statusEl) {
+        statusEl.textContent = q
+          ? `Найдено строк: ${shown} из ${rows.length} (поиск «${q}»)`
+          : `Всего строк: ${rows.length}`;
+      }
+    };
+
+    const applySort = () => {
+      const sorted = [...rows].sort((a, b) => {
+        const va = a.cells[sortCol], vb = b.cells[sortCol];
+        const na = numeric(va), nb = numeric(vb);
+        if (na !== null && nb !== null) return sortAsc ? na - nb : nb - na;
+        return sortAsc ? va.localeCompare(vb, "ru") : vb.localeCompare(va, "ru");
+      });
+      sorted.forEach((r) => lab2Table.tBodies[0].appendChild(r.el));
+      // стрелки направления в заголовках
+      lab2Table.tHead.querySelectorAll("th").forEach((th, i) => {
+        const base = th.dataset.label || th.textContent.replace(/ [▲▼]$/, "");
+        th.dataset.label = base;
+        th.textContent = base + (i === sortCol ? (sortAsc ? " ▲" : " ▼") : "");
+      });
+    };
+
+    fetch(lab2Table.dataset.src)
+      .then((resp) => {
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+        return resp.text();
+      })
+      .then((xmlText) => {
+        const doc = new DOMParser().parseFromString(xmlText, "application/xml");
+        if (doc.querySelector("parsererror")) throw new Error("XML не распознан");
+        const items = [...doc.documentElement.children]; // <book>…
+        if (!items.length) throw new Error("В файле нет элементов");
+
+        // заголовки — по тегам первого элемента
+        const headTr = document.createElement("tr");
+        Array.from(items[0].children).forEach((tag, i) => {
+          const th = document.createElement("th");
+          th.textContent = tag.tagName;
+          th.style.cursor = "pointer";
+          th.title = "Нажмите для сортировки по этой колонке";
+          th.addEventListener("click", () => {
+            if (sortCol === i) { sortAsc = !sortAsc; } else { sortCol = i; sortAsc = true; }
+            applySort();
+          });
+          headTr.appendChild(th);
+        });
+        lab2Table.tHead.replaceChildren(headTr);
+
+        const tbody = lab2Table.tBodies[0];
+        items.forEach((item) => {
+          const tr = document.createElement("tr");
+          const cells = [...item.children].map((tag) => tag.textContent.trim());
+          cells.forEach((val) => {
+            const td = document.createElement("td");
+            td.textContent = val;
+            tr.appendChild(td);
+          });
+          tbody.appendChild(tr);
+          rows.push({ cells, el: tr });
+        });
+
+        sortCol = 0; sortAsc = true;
+        applySort();
+        applyFilter();
+      })
+      .catch((err) => {
+        if (statusEl) statusEl.textContent = `Ошибка загрузки XML: ${err.message}`;
+      });
+
+    searchInput?.addEventListener("input", applyFilter);
+  }
 });

@@ -23,12 +23,6 @@ ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(ROOT, "data")
 DB_PATH = os.path.join(DATA_DIR, "library.sqlite3")
 
-DB_FILES: Dict[str, Dict[str, str]] = {
-    "main": {"file": "library_sqlite.db", "engine": "SQLite", "title": "library_sqlite.db"},
-    "extra": {"file": "library_postgres.db", "engine": "PostgreSQL", "title": "library_postgres.db"},
-}
-DEFAULT_DB_KEY = "main"
-
 ALLOWED_ADMIN_TABLES = {"readers", "books", "librarians", "statuses", "loans"}
 
 DATE_MIN = date(2026, 1, 1)
@@ -213,19 +207,9 @@ def create_app() -> Flask:
     app.config["SECRET_KEY"] = os.environ.get("SECRET_KEY", "dev-secret-change-me")
 
     # ------------------------------ БД ------------------------------
-    def current_db_key() -> str:
-        """Ключ выбранного источника данных (из сессии)."""
-        key = session.get("db_key", DEFAULT_DB_KEY)
-        return key if key in DB_FILES else DEFAULT_DB_KEY
-
     def get_db() -> sqlite3.Connection:
         if "db" not in g:
-            key = current_db_key()
-            path = os.path.join(DATA_DIR, DB_FILES[key]["file"])
-            if not os.path.exists(path):
-                # выбранная БД недоступна — откатываемся на основную
-                path = DB_PATH
-            conn = sqlite3.connect(path)
+            conn = sqlite3.connect(DB_PATH)
             conn.row_factory = sqlite3.Row
             conn.execute("PRAGMA foreign_keys = ON;")
             g.db = conn
@@ -299,8 +283,6 @@ def create_app() -> Flask:
             "total_visits": total_visits,
             "active_path": request.path,
             "year_now": date.today().year,
-            "db_files": DB_FILES,
-            "current_db_key": current_db_key(),
         }
 
     # ------------------------- Авторизация -------------------------
@@ -664,22 +646,152 @@ def create_app() -> Flask:
         )
         return Response(xml, mimetype="application/rss+xml; charset=utf-8")
 
+    # ----------------- ЛР 4: объединённые новости (БД + внешняя RSS) -----------------
+    DEFAULT_EXTERNAL_FEED = "https://lenta.ru/rss/news"
+
+    def parse_external_feed(raw: bytes) -> Dict[str, Any]:
+        """Разбирает RSS 2.0 / Atom. Возвращает {'title', 'items': [...]}."""
+        root = ET.fromstring(raw)
+        items = []
+        # RSS 2.0
+        channel = root.find("channel")
+        if channel is not None:
+            feed_title = channel.findtext("title") or "Внешняя лента"
+            for item in channel.findall("item")[:15]:
+                items.append({
+                    "title": item.findtext("title") or "(без заголовка)",
+                    "link": item.findtext("link") or "",
+                    "text": item.findtext("description") or "",
+                    "published": item.findtext("pubDate") or "",
+                    "sort_key": _rss_sort_key(item.findtext("pubDate")),
+                })
+            return {"title": feed_title, "items": items}
+        # Atom
+        ns = {"a": "http://www.w3.org/2005/Atom"}
+        entries = root.findall("a:entry", ns)
+        if entries:
+            feed_title = root.findtext("a:title", namespaces=ns) or "Внешняя лента (Atom)"
+            for entry in entries[:15]:
+                link_el = entry.find("a:link", ns)
+                link = link_el.get("href", "") if link_el is not None else ""
+                published = (entry.findtext("a:published", namespaces=ns)
+                             or entry.findtext("a:updated", namespaces=ns) or "")
+                items.append({
+                    "title": entry.findtext("a:title", namespaces=ns) or "(без заголовка)",
+                    "link": link,
+                    "text": entry.findtext("a:summary", namespaces=ns) or "",
+                    "published": published,
+                    "sort_key": _atom_sort_key(published),
+                })
+            return {"title": feed_title, "items": items}
+        return {"title": "Неизвестный формат ленты", "items": []}
+
+    def _rss_sort_key(pub: Optional[str]) -> datetime:
+        try:
+            from email.utils import parsedate_to_datetime
+            return parsedate_to_datetime(pub).replace(tzinfo=None)
+        except Exception:
+            return datetime.min
+
+    def _atom_sort_key(pub: str) -> datetime:
+        try:
+            return datetime.fromisoformat(pub.replace("Z", "+00:00")).replace(tzinfo=None)
+        except Exception:
+            return datetime.min
+
+    @app.get("/merged-news")
+    def merged_news():
+        """ЛР 4: наши новости из БД + внешняя RSS-лента на одной странице.
+        URL ленты можно заменить полем ниже."""
+        feed_url = (request.args.get("feed") or DEFAULT_EXTERNAL_FEED).strip()
+
+        own = q_all(
+            "SELECT id, title, body, published_at FROM news "
+            "ORDER BY published_at DESC LIMIT 10;"
+        )
+        own_items = [{
+            "title": n["title"], "link": url_for("news") + f"#news-{n['id']}",
+            "text": n["body"], "published": n["published_at"],
+            "source": SITE["name"], "own": True,
+            "sort_key": datetime.strptime(n["published_at"], "%Y-%m-%d %H:%M"),
+        } for n in own]
+
+        ext_items: list = []
+        ext_title = ""
+        ext_error: Optional[str] = None
+        raw = fetch_bytes(feed_url, timeout=8) or fetch_bytes_fallback(feed_url, timeout=8)
+        if raw:
+            try:
+                parsed = parse_external_feed(raw)
+                ext_title = parsed["title"]
+                ext_items = [dict(it, source=ext_title, own=False) for it in parsed["items"]]
+            except Exception:
+                ext_error = "Лента загрузилась, но не распозналась как RSS/Atom."
+        else:
+            ext_error = "Внешняя лента сейчас недоступна (проверьте адрес или интернет)."
+
+        merged = sorted(own_items + ext_items,
+                        key=lambda x: x["sort_key"], reverse=True)
+        return render_template(
+            "merged_news.html", feed_url=feed_url, ext_title=ext_title,
+            ext_error=ext_error, items=merged,
+        )
+
+    # ----------------- ЛР 2: ручной XML + JS-таблица -----------------
+    @app.get("/lab2-xml")
+    def lab2_xml():
+        """ЛР 2: статический XML-файл (7 элементов, создан вручную),
+        визуализация JavaScript'ом: таблица + поиск по символам + сортировка."""
+        return render_template("lab2_xml.html")
+
+    # ----------------- ЛР 4: экспорт новостей в трёх форматах -----------------
+    EXPORT_FIELDS = ("id", "title", "body", "published_at")
+
+    def export_rows() -> list:
+        return q_all(
+            "SELECT id, title, body, published_at FROM news "
+            "ORDER BY published_at DESC;"
+        )
+
+    @app.get("/export/news.xml")
+    def export_news_xml():
+        """Экспорт новостей в XML."""
+        items = "\n".join(
+            "  <news>\n"
+            f"    <id>{n['id']}</id>\n"
+            f"    <title>{xml_escape(n['title'])}</title>\n"
+            f"    <body>{xml_escape(n['body'])}</body>\n"
+            f"    <published_at>{n['published_at']}</published_at>\n"
+            "  </news>"
+            for n in export_rows()
+        )
+        xml = ('<?xml version="1.0" encoding="UTF-8"?>\n'
+               f"<news_export>\n{items}\n</news_export>")
+        return Response(xml, mimetype="application/xml; charset=utf-8")
+
+    @app.get("/export/news.csv")
+    def export_news_csv():
+        """Экспорт новостей в CSV: разделитель «;», первая строка — список полей."""
+        lines = [";".join(EXPORT_FIELDS)]
+        for n in export_rows():
+            vals = [str(n[f]).replace(";", ",").replace("\n", " ") for f in EXPORT_FIELDS]
+            lines.append(";".join(vals))
+        csv_text = "﻿" + "\n".join(lines)  # BOM — чтобы Excel понял UTF-8
+        return Response(csv_text, mimetype="text/csv; charset=utf-8")
+
+    @app.get("/export/news-tagged.txt")
+    def export_news_tagged():
+        """Экспорт новостей в текстовый tagged-формат:
+        каждая запись — поля через «;» внутри тега <news>…</news>."""
+        blocks = []
+        for n in export_rows():
+            vals = [str(n[f]).replace("\n", " ") for f in EXPORT_FIELDS]
+            blocks.append("<news>" + ";".join(vals) + "</news>")
+        return Response("\n".join(blocks), mimetype="text/plain; charset=utf-8")
+
     # =========================================================
     #   ПРИЛОЖЕНИЕ К БД (выдача книг, поиск, администрирование)
     # =========================================================
-    @app.get("/db/switch")
-    def db_switch():
-        """Переключение источника данных между доступными БД (кнопка на страницах приложения)."""
-        key = request.args.get("key", DEFAULT_DB_KEY)
-        if key not in DB_FILES:
-            key = DEFAULT_DB_KEY
-        session["db_key"] = key
-        flash(f"Источник данных: {DB_FILES[key]['file']}", "success")
-        nxt = request.args.get("next", "")
-        if not nxt.startswith("/"):
-            nxt = url_for("db_app")
-        return redirect(nxt)
-    
     def loan_form_data():
         return {
             "readers": q_all("SELECT id, full_name FROM readers ORDER BY full_name;"),

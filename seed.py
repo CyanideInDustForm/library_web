@@ -10,10 +10,7 @@ from werkzeug.security import generate_password_hash
 ROOT = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(ROOT, "data")
 SCHEMA_PATH = os.path.join(ROOT, "schema.sql")
-DATABASES = {
-    "main": ("library_sqlite.db", 10),     # (имя файла, «соль» генерации данных)
-    "extra": ("library_postgres.db", 20),
-}
+DB_PATH = os.path.join(DATA_DIR, "library.sqlite3")
 
 STATUSES = [
     (1, "выдано"),
@@ -283,8 +280,7 @@ def seed_db(filename: str, salt: int):
 
 def main():
     ensure_dirs()
-    for filename, salt in DATABASES.values():
-        seed_db(filename, salt)
+    seed_db(os.path.basename(DB_PATH), 10)
 
 
 if __name__ == "__main__":

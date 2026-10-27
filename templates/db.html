@@ -4,12 +4,9 @@
 {% block content %}
 
 <h2 class="section-title">Приложение к базе данных: учёт выдачи книг</h2>
-<p class="text-muted">Приложение работает с двумя СУБД — SQLite (<code>library_sqlite.db</code>) и
-   PostgreSQL (<code>library_postgres.db</code>); переключение — кнопками ниже.
-   Схема одинаковая (таблицы <code>readers</code>, <code>books</code>,
-   <code>librarians</code>, <code>statuses</code>, <code>loans</code>).</p>
-
-{% include "_db_switch.html" %}
+<p class="text-muted">Приложение работает с базой данных SQLite (<code>library.sqlite3</code>).
+   Схема: таблицы <code>readers</code>, <code>books</code>,
+   <code>librarians</code>, <code>statuses</code>, <code>loans</code>.</p>
 
 <div class="row g-4">
   <div class="col-lg-5">
