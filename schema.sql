@@ -94,8 +94,8 @@ CREATE TABLE loans (
   issue_date TEXT NOT NULL
     CHECK (issue_date >= '2026-01-01'),
 
-  due_date TEXT NOT NULL
-    CHECK (due_date >= issue_date),
+  due_date TEXT NULL
+    CHECK (due_date IS NULL OR due_date >= issue_date),
 
   return_date TEXT NULL
     CHECK (

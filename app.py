@@ -299,24 +299,28 @@ def create_app() -> Flask:
     def parse_date(s: str) -> date:
         return date.fromisoformat(s)
 
-    def validate_loan(issue_date_s: str, due_date_s: str, status_id: int,
-                      return_date_s: Optional[str]) -> None:
+    def validate_loan(issue_date_s: str, due_date_s: Optional[str], status_id: int,
+                  return_date_s: Optional[str]) -> None:
         today = date.today()
         issue = parse_date(issue_date_s)
-        due = parse_date(due_date_s)
+        due = parse_date(due_date_s) if due_date_s else None
         ret = parse_date(return_date_s) if return_date_s else None
 
         if issue < DATE_MIN or issue > today:
             raise ValueError("issue_date должен быть между 2026-01-01 и текущей датой.")
-        if due < DATE_MIN or due > today:
-            raise ValueError("due_date должен быть между 2026-01-01 и текущей датой.")
-        if due < issue:
-            raise ValueError("due_date должен быть >= issue_date.")
+
+        if due is not None:
+            if due < DATE_MIN or due > today:
+                raise ValueError("due_date должен быть между 2026-01-01 и текущей датой.")
+            if due < issue:
+                raise ValueError("due_date должен быть >= issue_date.")
+
         if ret is not None:
             if ret < DATE_MIN or ret > today:
                 raise ValueError("return_date должен быть между 2026-01-01 и текущей датой.")
             if ret < issue:
                 raise ValueError("return_date должен быть >= issue_date.")
+
         if status_id == 2 and ret is None:
             raise ValueError("Для статуса 'возвращено' return_date обязателен.")
 
@@ -829,7 +833,7 @@ def create_app() -> Flask:
             status_id = int(request.form["status_id"])
 
             issue_date = request.form["issue_date"].strip()
-            due_date = request.form["due_date"].strip()
+            due_date = (request.form.get("due_date") or "").strip() or None
 
             return_date = request.form.get("return_date")
             return_date = return_date.strip() if return_date else None
