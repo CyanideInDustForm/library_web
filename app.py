@@ -310,8 +310,8 @@ def create_app() -> Flask:
             raise ValueError("issue_date должен быть между 2026-01-01 и текущей датой.")
 
         if due is not None:
-            if due < DATE_MIN or due > today:
-                raise ValueError("due_date должен быть между 2026-01-01 и текущей датой.")
+            if due < DATE_MIN:
+                raise ValueError("due_date должен быть раньше 2026-01-01")
             if due < issue:
                 raise ValueError("due_date должен быть >= issue_date.")
 
@@ -365,11 +365,7 @@ def create_app() -> Flask:
     # =========================================================
     @app.get("/news")
     def news():
-        items = q_all(
-            "SELECT id, title, body, published_at FROM news "
-            "ORDER BY published_at DESC;"
-        )
-        return render_template("news.html", news=items)
+        return redirect(url_for("merged_news"))
 
     @app.post("/news/add")
     def news_add():
@@ -390,7 +386,7 @@ def create_app() -> Flask:
             flash(str(e), "danger")
         except Exception:
             flash("Не удалось добавить новость (проверьте длину полей).", "danger")
-        return redirect(url_for("news"))
+        return redirect(url_for("merged_news"))
 
     # =========================================================
     #   СЕРВИСЫ: погода, курсы валют, топ страниц
@@ -651,7 +647,7 @@ def create_app() -> Flask:
         return Response(xml, mimetype="application/rss+xml; charset=utf-8")
 
     # ----------------- ЛР 4: объединённые новости (БД + внешняя RSS) -----------------
-    DEFAULT_EXTERNAL_FEED = "https://lenta.ru/rss/news"
+    DEFAULT_EXTERNAL_FEED = "https://godliteratury.ru/rss""
 
     def parse_external_feed(raw: bytes) -> Dict[str, Any]:
         """Разбирает RSS 2.0 / Atom. Возвращает {'title', 'items': [...]}."""
@@ -661,7 +657,9 @@ def create_app() -> Flask:
         channel = root.find("channel")
         if channel is not None:
             feed_title = channel.findtext("title") or "Внешняя лента"
-            for item in channel.findall("item")[:15]:
+
+            rss_items = channel.findall("item") or root.findall("item")
+            for item in rss_items[:15]:
                 items.append({
                     "title": item.findtext("title") or "(без заголовка)",
                     "link": item.findtext("link") or "",
@@ -705,40 +703,74 @@ def create_app() -> Flask:
 
     @app.get("/merged-news")
     def merged_news():
-        """ЛР 4: наши новости из БД + внешняя RSS-лента на одной странице.
-        URL ленты можно заменить полем ниже."""
-        feed_url = (request.args.get("feed") or DEFAULT_EXTERNAL_FEED).strip()
+        """Новости библиотеки и внешняя RSS в двух колонках."""
+        feed_url = (
+            request.args.get("feed") or DEFAULT_EXTERNAL_FEED
+        ).strip()
+        query = (request.args.get("q") or "").strip()
+        needle = query.casefold()
 
         own = q_all(
             "SELECT id, title, body, published_at FROM news "
-            "ORDER BY published_at DESC LIMIT 10;"
+            "ORDER BY published_at DESC;"
         )
+
         own_items = [{
-            "title": n["title"], "link": url_for("news") + f"#news-{n['id']}",
-            "text": n["body"], "published": n["published_at"],
-            "source": SITE["name"], "own": True,
-            "sort_key": datetime.strptime(n["published_at"], "%Y-%m-%d %H:%M"),
+            "id": n["id"],
+            "title": n["title"],
+            "link": url_for("merged_news") + f"#news-{n['id']}",
+            "text": n["body"],
+            "published": n["published_at"],
+            "source": SITE["name"],
+            "own": True,
         } for n in own]
 
-        ext_items: list = []
+        ext_items = []
         ext_title = ""
-        ext_error: Optional[str] = None
-        raw = fetch_bytes(feed_url, timeout=8) or fetch_bytes_fallback(feed_url, timeout=8)
+        ext_error = None
+
+        raw = (
+            fetch_bytes(feed_url, timeout=8)
+            or fetch_bytes_fallback(feed_url, timeout=8)
+        )
+
         if raw:
             try:
                 parsed = parse_external_feed(raw)
                 ext_title = parsed["title"]
-                ext_items = [dict(it, source=ext_title, own=False) for it in parsed["items"]]
+                ext_items = [
+                    dict(item, source=ext_title, own=False)
+                    for item in parsed["items"]
+                ]
             except Exception:
-                ext_error = "Лента загрузилась, но не распозналась как RSS/Atom."
+                ext_error = (
+                    "Лента загрузилась, но не распозналась как RSS/Atom."
+                )
         else:
-            ext_error = "Внешняя лента сейчас недоступна (проверьте адрес или интернет)."
+            ext_error = (
+                "Внешняя лента сейчас недоступна. "
+                "Новости библиотеки при этом продолжают работать."
+            )
 
-        merged = sorted(own_items + ext_items,
-                        key=lambda x: x["sort_key"], reverse=True)
+        # Отдельный поиск по новостям сайта и внешней RSS.
+        if needle:
+            own_items = [
+                item for item in own_items
+                if needle in f"{item['title']} {item['text']}".casefold()
+            ]
+            ext_items = [
+                item for item in ext_items
+                if needle in f"{item['title']} {item['text']}".casefold()
+            ]
+
         return render_template(
-            "merged_news.html", feed_url=feed_url, ext_title=ext_title,
-            ext_error=ext_error, items=merged,
+            "merged_news.html",
+            feed_url=feed_url,
+            ext_title=ext_title,
+            ext_error=ext_error,
+            own_items=own_items,
+            ext_items=ext_items,
+            query=query,
         )
 
     # ----------------- ЛР 2: ручной XML + JS-таблица -----------------
@@ -1084,7 +1116,7 @@ def create_app() -> Flask:
                 librarian_id = int(request.form["librarian_id"])
                 status_id = int(request.form["status_id"])
                 issue_date = request.form["issue_date"].strip()
-                due_date = request.form["due_date"].strip()
+                due_date = (request.form.get("due_date") or "").strip() or None
                 return_date = (request.form.get("return_date") or "").strip() or None
 
                 validate_loan(issue_date, due_date, status_id, return_date)

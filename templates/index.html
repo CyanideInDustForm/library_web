@@ -14,7 +14,7 @@
       <h1 class="display-6 fw-semibold hero-title">Добро пожаловать в {{ site.name|lower }}!</h1>
       <p class="lead mt-3">
         Наш сайт создан для <span class="text-highlight">читателей</span>: здесь вы найдёте
-        <a href="{{ url_for('news') }}">новости</a>, сведения об
+        <a href="{{ url_for('merged_news') }}">новости</a>, сведения об
         <a href="{{ url_for('about') }}">услугах библиотеки</a>, полезные
         <a href="{{ url_for('links') }}">ссылки</a> и
         <a href="{{ url_for('db_app') }}">электронный каталог выдачи</a>.
@@ -44,7 +44,7 @@
         </div>
       </article>
     {% endfor %}
-    <a href="{{ url_for('news') }}" class="btn btn-outline-accent">Все новости ({{ stats.news }})</a>
+    <a href="{{ url_for('merged_news') }}" class="btn btn-outline-accent">Все новости ({{ stats.news }})</a>
   </div>
 
   <div class="col-lg-4">
