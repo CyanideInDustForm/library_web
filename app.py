@@ -647,7 +647,7 @@ def create_app() -> Flask:
         return Response(xml, mimetype="application/rss+xml; charset=utf-8")
 
     # ----------------- ЛР 4: объединённые новости (БД + внешняя RSS) -----------------
-    DEFAULT_EXTERNAL_FEED = "https://godliteratury.ru/rss""
+    DEFAULT_EXTERNAL_FEED = "https://godliteratury.ru/rss"
 
     def parse_external_feed(raw: bytes) -> Dict[str, Any]:
         """Разбирает RSS 2.0 / Atom. Возвращает {'title', 'items': [...]}."""
