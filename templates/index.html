@@ -34,11 +34,11 @@
 
 <div class="row g-4">
   <div class="col-lg-8">
-    <h4 class="section-title">Последние новости</h4>
+    <h2 class="section-title">Последние новости</h2>
     {% for n in latest_news %}
       <article class="card shadow-sm mb-3">
         <div class="card-body">
-          <h5 class="card-title">{{ n.title }}</h5>
+          <h3 class="card-title">{{ n.title }}</h3>
           <p class="card-text">{{ n.body }}</p>
           <div class="text-muted small">Опубликовано: {{ n.published_at }}</div>
         </div>
@@ -86,7 +86,7 @@
   </div>
 </div>
 
-<h4 class="section-title mt-5" id="about-brief">Кратко о библиотеке</h4>
+<h2 class="section-title mt-5" id="about-brief">Кратко о библиотеке</h2>
 <div class="row g-4">
   <div class="col-md-4">
     <p>Библиотека открыта для <span class="text-highlight">всех жителей города</span> —

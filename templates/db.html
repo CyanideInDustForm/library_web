@@ -16,41 +16,62 @@
         <form method="post" action="{{ url_for('create_loan') }}" class="needs-validation" novalidate>
 
           <div class="mb-3">
-            <label class="form-label">Читатель</label>
-            <select class="form-select" name="reader_id" required>
-              <option value="" selected disabled>Выберите...</option>
-              {% for r in readers %}
-                <option value="{{ r.id }}">{{ r.full_name }}</option>
-              {% endfor %}
-            </select>
+            <label class="form-label" for="loan-reader">Читатель</label>
+            <div class="input-group">
+              <select class="form-select" id="loan-reader" name="reader_id" required>
+                <option value="" selected disabled>Выберите...</option>
+                {% for r in readers %}
+                  <option value="{{ r.id }}">{{ r.full_name }}</option>
+                {% endfor %}
+              </select>
+              <a class="btn btn-outline-secondary"
+                 href="{{ url_for('db_admin', table='readers') }}"
+                 target="_blank" rel="noopener"
+                 title="Добавить читателя"
+                 aria-label="Добавить читателя">+</a>
+            </div>
             <div class="invalid-feedback">Нужен читатель.</div>
           </div>
 
           <div class="mb-3">
-            <label class="form-label">Книга</label>
-            <select class="form-select" name="book_id" required>
-              <option value="" selected disabled>Выберите...</option>
-              {% for b in books %}
-                <option value="{{ b.id }}">{{ b.title }}</option>
-              {% endfor %}
-            </select>
+            <label class="form-label" for="loan-book">Книга</label>
+            <div class="input-group">
+              <select class="form-select" id="loan-book" name="book_id" required>
+                <option value="" selected disabled>Выберите...</option>
+                {% for b in books %}
+                  <option value="{{ b.id }}">{{ b.title }}</option>
+                {% endfor %}
+              </select>
+              <a class="btn btn-outline-secondary"
+                 href="{{ url_for('db_admin', table='books') }}"
+                 target="_blank" rel="noopener"
+                 title="Добавить книгу"
+                 aria-label="Добавить книгу">+</a>
+            </div>
             <div class="invalid-feedback">Нужна книга.</div>
           </div>
 
           <div class="mb-3">
-            <label class="form-label">Библиотекарь</label>
-            <select class="form-select" name="librarian_id" required>
-              <option value="" selected disabled>Выберите...</option>
-              {% for lb in librarians %}
-                <option value="{{ lb.id }}">{{ lb.full_name }}</option>
-              {% endfor %}
-            </select>
+            <label class="form-label" for="loan-librarian">Библиотекарь</label>
+            <div class="input-group">
+              <select class="form-select" id="loan-librarian" name="librarian_id" required>
+                <option value="" selected disabled>Выберите...</option>
+                {% for lb in librarians %}
+                  <option value="{{ lb.id }}">{{ lb.full_name }}</option>
+                {% endfor %}
+              </select>
+              <a class="btn btn-outline-secondary"
+                 href="{{ url_for('db_admin', table='librarians') }}"
+                 target="_blank" rel="noopener"
+                 title="Добавить библиотекаря"
+                 aria-label="Добавить библиотекаря">+</a>
+            </div>
             <div class="invalid-feedback">Нужен библиотекарь.</div>
           </div>
 
           <div class="mb-3">
-            <label class="form-label">Статус</label>
-            <select class="form-select" name="status_id" required>
+            <label class="form-label" for="loan-status">Статус</label>
+            <select class="form-select" id="loan-status" name="status_id" required>
               {% for s in statuses %}
                 <option value="{{ s.id }}">{{ s.title }}</option>
               {% endfor %}
@@ -76,7 +97,8 @@
         </form>
 
         <div class="form-text mt-2">
-          Даты проверяются на сервере (до текущей даты + логика статуса).
+          Срок возврата необязателен и может быть в будущем.
+          Фактическая дата возврата проверяется в соответствии со статусом.
         </div>
       </div>
     </div>
@@ -104,7 +126,7 @@
               <tr>
                 <td>{{ l.id }}</td>
                 <td><code>{{ l.issue_date }}</code></td>
-                <td><code>{{ l.due_date }}</code></td>
+                <td><code>{{ l.due_date or '—' }}</code></td>
                 <td>{{ l.return_date or '—' }}</td>
                 <td>{{ l.reader_name }}</td>
                 <td>{{ l.book_title }}</td>

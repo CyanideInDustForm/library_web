@@ -93,6 +93,12 @@
      target="_blank">TXT</a>
 </div>
 
+{% if query and not own_items and not ext_items %}
+  <div class="alert alert-info">
+    По запросу «{{ query }}» новости не найдены.
+  </div>
+{% endif %}
+
 <div class="row g-4">
 
   <section class="col-lg-6">
@@ -110,13 +116,9 @@
         </div>
       </article>
     {% else %}
-      <div class="alert alert-info">
-        {% if query %}
-          По запросу ничего не найдено.
-        {% else %}
-          Новостей библиотеки пока нет.
-        {% endif %}
-      </div>
+      {% if not query %}
+        <div class="text-muted mb-3">Новостей библиотеки пока нет.</div>
+      {% endif %}
     {% endfor %}
   </section>
 
@@ -150,13 +152,9 @@
         </div>
       </article>
     {% else %}
-      <div class="alert alert-info">
-        {% if query %}
-          По запросу ничего не найдено.
-        {% else %}
-          Материалы внешней ленты недоступны.
-        {% endif %}
-      </div>
+      {% if not query %}
+        <div class="text-muted mb-3">Материалы внешней ленты недоступны.</div>
+      {% endif %}
     {% endfor %}
   </section>
 

@@ -311,7 +311,7 @@ def create_app() -> Flask:
 
         if due is not None:
             if due < DATE_MIN:
-                raise ValueError("due_date должен быть раньше 2026-01-01")
+                raise ValueError("due_date не может быть раньше 2026-01-01.")
             if due < issue:
                 raise ValueError("due_date должен быть >= issue_date.")
 
@@ -434,7 +434,7 @@ def create_app() -> Flask:
                 if matched:
                     results.append({
                         "title": n["title"],
-                        "url": url_for("news") + f"#news-{n['id']}",
+                        "url": url_for("merged_news") + f"#news-{n['id']}",
                         "kind": "Новость",
                         "snippet": n["body"][:120] + ("…" if len(n["body"]) > 120 else ""),
                         "score": len(matched),
@@ -564,7 +564,7 @@ def create_app() -> Flask:
             f"    <librarian>{xml_escape(l['librarian'])}</librarian>\n"
             f"    <status>{xml_escape(l['status'])}</status>\n"
             f"    <issue>{l['issue_date']}</issue>\n"
-            f"    <due>{l['due_date']}</due>\n"
+            f"    <due>{l['due_date'] or ''}</due>\n"
             f"    <returned>{l['return_date'] or ''}</returned>\n"
             "  </item>"
             for l in items
@@ -625,8 +625,8 @@ def create_app() -> Flask:
         channel_items = "\n".join(
             "    <item>\n"
             f"      <title>{xml_escape(n['title'])}</title>\n"
-            f"      <link>{base}{url_for('news')}#news-{n['id']}</link>\n"
-            f"      <guid>{base}{url_for('news')}#news-{n['id']}</guid>\n"
+            f"      <link>{base}{url_for('merged_news')}#news-{n['id']}</link>\n"
+            f"      <guid>{base}{url_for('merged_news')}#news-{n['id']}</guid>\n"
             f"      <description>{xml_escape(n['body'])}</description>\n"
             f"      <pubDate>{rss_pub_date(n['published_at'])}</pubDate>\n"
             "    </item>"
@@ -637,7 +637,7 @@ def create_app() -> Flask:
             '<rss version="2.0">\n'
             "  <channel>\n"
             f"    <title>{xml_escape(SITE['name'])} — новости</title>\n"
-            f"    <link>{base}{url_for('news')}</link>\n"
+            f"    <link>{base}{url_for('merged_news')}</link>\n"
             f"    <description>Новости {xml_escape(SITE['name'].lower())}</description>\n"
             f"    <language>ru</language>\n"
             f"{channel_items}\n"
