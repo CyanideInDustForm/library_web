@@ -20,7 +20,8 @@ from flask import (
 from werkzeug.security import check_password_hash, generate_password_hash
 
 ROOT = os.path.dirname(os.path.abspath(__file__))
-DATA_DIR = os.path.join(ROOT, "data")
+DATA_DIR = os.environ.get("DATA_DIR", os.path.join(ROOT, "data"))
+os.makedirs(DATA_DIR, exist_ok=True)
 DB_PATH = os.path.join(DATA_DIR, "library.sqlite3")
 
 ALLOWED_ADMIN_TABLES = {"readers", "books", "librarians", "statuses", "loans"}
