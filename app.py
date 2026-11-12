@@ -26,6 +26,16 @@ DB_PATH = os.path.join(DATA_DIR, "library.sqlite3")
 
 ALLOWED_ADMIN_TABLES = {"readers", "books", "librarians", "statuses", "loans"}
 
+# таблицы, записи которых можно редактировать (statuses — фиксированный справочник)
+EDITABLE_TABLES = {"readers", "books", "librarians", "loans"}
+EDITABLE_COLUMNS = {
+    "readers": ("reader_card_number", "full_name", "phone", "email"),
+    "books": ("inventory_number", "title", "author", "publish_year", "isbn"),
+    "librarians": ("employee_number", "full_name", "phone"),
+    "loans": ("reader_id", "book_id", "librarian_id", "status_id",
+              "issue_date", "due_date", "return_date"),
+}
+
 DATE_MIN = date(2026, 1, 1)
 
 # --- Контактные данные организации (выводятся в подвале каждой страницы) ---
@@ -35,7 +45,11 @@ SITE = {
     "address": "ул. Ленина, 12, г. Обнинск, Калужская обл., 249030",
     "phone": "+7 (48439) 2-15-15",
     "email": "library@obninsk-lib.ru",
-    "developer": "Студентка факультета кибернетики — Анастасия",
+    "developer": "Анастасия",
+    "developer_email": "kambarovaaa23@oiate.ru",
+    "developer_group": "ИВТ-Б23",
+    "developer_department": "Отделение ИКС (интеллектуальных кибернетических систем)",
+    "developer_university": "ИАТЭ НИЯУ МИФИ",
     "year": "2026",
 }
 
@@ -150,26 +164,57 @@ def fetch_bytes_fallback(url: str, timeout: int = 6) -> Optional[bytes]:
 
 
 def get_weather() -> Optional[dict]:
-    """Сервис «Погода»: прогноз для города библиотеки (Open-Meteo, без ключа)."""
+    """Сервис «Погода» для города библиотеки.
+
+    Основной источник — wttr.in (доступен из РФ без VPN, отдаёт описания
+    на русском). Запасной — Open-Meteo. Результат кэшируется на 10 минут."""
     if _weather_cache["data"] and time.time() - _weather_cache["ts"] < 600:
         return _weather_cache["data"]
+
+    data = _weather_from_wttr() or _weather_from_openmeteo()
+    if data:
+        _weather_cache["data"] = data
+        _weather_cache["ts"] = time.time()
+    return _weather_cache["data"]
+
+
+def _weather_from_wttr() -> Optional[dict]:
+    url = f"https://wttr.in/{WEATHER_LAT},{WEATHER_LON}?format=j1&lang=ru"
+    raw = fetch_json(url, timeout=8)
+    if not raw:
+        return None
+    try:
+        cc = raw["current_condition"][0]
+        # lang_ru — русское описание; если его нет — берём английское
+        desc_ru = cc.get("lang_ru") or [{}]
+        desc_en = cc.get("weatherDesc") or [{}]
+        return {
+            "temperature": cc.get("temp_C"),
+            "wind": round(int(cc.get("windspeedKmph", 0)) / 3.6),  # км/ч → м/с
+            "description": desc_ru[0].get("value") or desc_en[0].get("value") or "—",
+            "time": datetime.now().strftime("%d.%m.%Y %H:%M"),
+            "source": "wttr.in",
+        }
+    except Exception:
+        return None
+
+
+def _weather_from_openmeteo() -> Optional[dict]:
     url = (
         f"https://api.open-meteo.com/v1/forecast?latitude={WEATHER_LAT}"
         f"&longitude={WEATHER_LON}&current_weather=true&timezone=Europe%2FMoscow"
     )
     raw = fetch_json(url)
     if not raw or "current_weather" not in raw:
-        return _weather_cache["data"]
+        return None
     cw = raw["current_weather"]
-    data = {
+    return {
         "temperature": cw.get("temperature"),
-        "wind": cw.get("windspeed"),
+        "wind": round(cw.get("windspeed", 0) / 3.6),  # км/ч → м/с
         "description": WEATHER_CODES.get(cw.get("weathercode"), "—"),
         "time": cw.get("time", ""),
+        "source": "Open-Meteo",
     }
-    _weather_cache["data"] = data
-    _weather_cache["ts"] = time.time()
-    return data
 
 
 def get_currency() -> Optional[List[dict]]:
@@ -1057,7 +1102,26 @@ def create_app() -> Flask:
         if table not in ALLOWED_ADMIN_TABLES:
             table = "readers"
 
-        rows = q_all(f"SELECT * FROM {table} LIMIT 200;")
+        if table == "loans":
+            # JOIN'ы: рядом с id показываем имена — таблицу можно читать
+            rows = q_all("""
+                SELECT
+                  l.id, l.reader_id,
+                  r.full_name AS reader_name,
+                  l.book_id, b.title AS book_title,
+                  l.librarian_id, lb.full_name AS librarian_name,
+                  l.status_id, s.title AS status_title,
+                  l.issue_date, l.due_date, l.return_date
+                FROM loans l
+                JOIN readers r ON r.id = l.reader_id
+                JOIN books b ON b.id = l.book_id
+                JOIN librarians lb ON lb.id = l.librarian_id
+                JOIN statuses s ON s.id = l.status_id
+                ORDER BY l.id
+                LIMIT 200;
+            """)
+        else:
+            rows = q_all(f"SELECT * FROM {table} LIMIT 200;")
         data = loan_form_data()
 
         return render_template(
@@ -1155,6 +1219,47 @@ def create_app() -> Flask:
             flash("Запись удалена.", "success")
         except Exception as e:
             flash(f"Ошибка удаления: {e}", "danger")
+
+        return redirect(url_for("db_admin", table=table))
+
+    @app.post("/admin/<table>/update/<int:id>")
+    def admin_update(table: str, id: int):
+        if table not in EDITABLE_TABLES:
+            flash("Эту таблицу нельзя редактировать.", "danger")
+            return redirect(url_for("db_admin"))
+
+        columns = EDITABLE_COLUMNS[table]
+        try:
+            if table == "loans":
+                reader_id = int(request.form["reader_id"])
+                book_id = int(request.form["book_id"])
+                librarian_id = int(request.form["librarian_id"])
+                status_id = int(request.form["status_id"])
+
+                issue_date = request.form["issue_date"].strip()
+                due_date = (request.form.get("due_date") or "").strip() or None
+                return_date = (request.form.get("return_date") or "").strip() or None
+
+                validate_loan(issue_date, due_date, status_id, return_date)
+                values = (reader_id, book_id, librarian_id, status_id,
+                          issue_date, due_date, return_date)
+            else:
+                values = tuple(
+                    (request.form.get(c) or "").strip() or None
+                    for c in columns
+                )
+                if table == "books":
+                    values = values[:3] + (int(values[3]),) + values[4:]
+
+            sets = ", ".join(f"{c} = ?" for c in columns)
+            exec1(f"UPDATE {table} SET {sets} WHERE id = ?;", values + (id,))
+            flash("Запись обновлена.", "success")
+        except ValueError as e:
+            flash(str(e), "danger")
+        except sqlite3.IntegrityError as e:
+            flash(f"Ошибка ограничения БД: {e}", "danger")
+        except Exception:
+            flash("Некорректные данные.", "danger")
 
         return redirect(url_for("db_admin", table=table))
 
@@ -1328,13 +1433,13 @@ def create_app() -> Flask:
         text = (request.form.get("text") or "").strip()
         if len(text) < 10 or len(text) > 1000:
             flash("Отзыв должен быть от 10 до 1000 символов.", "danger")
-            return redirect(url_for("reviews"))
+            return redirect(safe_next(url_for("reviews")))
         exec1(
             "INSERT INTO reviews(user_id, text, created_at) VALUES (?, ?, ?);",
             (session["user_id"], text, datetime.now().strftime("%Y-%m-%d %H:%M")),
         )
         flash("Спасибо! Ваш отзыв опубликован.", "success")
-        return redirect(url_for("reviews"))
+        return redirect(safe_next(url_for("reviews")))
 
     # =========================================================
     #   МЕРОПРИЯТИЯ: календарь + запись (только для своих)
@@ -1372,6 +1477,8 @@ def create_app() -> Flask:
         offset = (first.weekday())  # 0 = понедельник
         days_in_month = (date(year + (month == 12), month % 12 + 1, 1) - timedelta(days=1)).day
         cells = [None] * offset + list(range(1, days_in_month + 1))
+        # дополняем сетку пустыми ячейками до полных недель
+        cells += [None] * ((-len(cells)) % 7)
 
         prev_month = (month_date - timedelta(days=1)).replace(day=1).strftime("%Y-%m")
         next_first = month_date + timedelta(days=32)

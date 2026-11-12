@@ -3,7 +3,7 @@
 {% block title %}Личный кабинет — {{ site.name }}{% endblock %}
 {% block content %}
 
-<h2 class="section-title">Личный кабинет</h2>
+<h1 class="section-title">Личный кабинет</h1>
 
 <div class="row g-4">
   <div class="col-lg-4">
@@ -27,6 +27,11 @@
     <div class="card shadow-sm mb-4">
       <div class="card-header bg-white fw-semibold">🎫 Мои записи на мероприятия</div>
       <div class="card-body">
+        <p class="mb-3">
+          Записаться на мероприятие:
+          <a href="{{ url_for('events') }}">перейти к афише</a>.
+        </p>
+
         {% if registrations %}
           <table class="table table-striped align-middle">
             <thead>
@@ -58,13 +63,17 @@
     <div class="card shadow-sm">
       <div class="card-header bg-white fw-semibold">✍️ Мои отзывы</div>
       <div class="card-body">
+        <p class="mb-3">
+          Оставить отзыв:
+          <a href="{{ url_for('reviews') }}">перейти в гостевую книгу</a>.
+        </p>
+
         {% if reviews %}
           {% for r in reviews %}
             <p class="mb-2">«{{ r.text }}» <small class="text-muted">— {{ r.created_at }}</small></p>
           {% endfor %}
         {% else %}
-          <div class="text-muted">Вы ещё не оставляли отзывов — это можно сделать в
-             <a href="{{ url_for('reviews') }}">гостевой книге</a>.</div>
+          <div class="text-muted">Вы ещё не оставляли отзывов.</div>
         {% endif %}
       </div>
     </div>

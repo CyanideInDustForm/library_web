@@ -58,6 +58,7 @@
   border-left: 4px solid var(--accent);
   padding-left: .6rem;
   margin-bottom: 1rem;
+  font-size: 2rem;
 }
 .text-highlight{
   background: linear-gradient(transparent 60%, #ffd9a8 60%);

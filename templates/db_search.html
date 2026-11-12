@@ -3,7 +3,7 @@
 {% block title %}Поиск по БД — {{ site.name }}{% endblock %}
 {% block content %}
 
-<h2 class="section-title">Поиск по базе данных</h2>
+<h1 class="section-title">Поиск по базе данных</h1>
 
 <div class="d-flex flex-wrap gap-2 mb-3">
   <a class="btn {{ 'btn-accent' if mode=='one' else 'btn-outline-accent' }}"
@@ -55,19 +55,15 @@
           </div>
           <div class="col-md-3">
             <label class="form-label">Автор</label>
-            <div class="input-group">
-              <select class="form-select" name="author">
-                <option value="">(любой)</option>
-                {% for a in authors %}
-                  <option value="{{ a.author }}"
-                  {% if request.args.get('author') == a.author %}selected{% endif %}>
-                    {{ a.author }}
-                  </option>
-                {% endfor %}
-              </select>
-              <a class="btn btn-outline-secondary" href="{{ url_for('db_admin', table='books') }}"
-                 title="Добавить книгу">+</a>
-            </div>
+            <select class="form-select" name="author">
+              <option value="">(любой)</option>
+              {% for a in authors %}
+                <option value="{{ a.author }}"
+                {% if request.args.get('author') == a.author %}selected{% endif %}>
+                  {{ a.author }}
+                </option>
+              {% endfor %}
+            </select>
           </div>
           <div class="col-md-3">
             <label class="form-label">Год издания</label>
@@ -139,8 +135,6 @@
                 </option>
               {% endfor %}
             </select>
-            <a class="btn btn-outline-secondary" href="{{ url_for('db_admin', table='readers') }}"
-               title="Добавить читателя">+</a>
           </div>
         </div>
 
@@ -150,8 +144,6 @@
             <select class="form-select" name="book_id" id="cascadeBook">
               <option value="">(сначала выберите читателя)</option>
             </select>
-            <a class="btn btn-outline-secondary" href="{{ url_for('db_admin', table='books') }}"
-               title="Добавить книгу">+</a>
           </div>
         </div>
 

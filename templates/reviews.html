@@ -3,7 +3,7 @@
 {% block title %}Отзывы читателей — {{ site.name }}{% endblock %}
 {% block content %}
 
-<h2 class="section-title">Отзывы читателей</h2>
+<h1 class="section-title">Отзывы читателей</h1>
 
 <div class="row g-4">
   <div class="col-lg-8">
@@ -11,7 +11,7 @@
       <div class="card shadow-sm mb-3">
         <div class="card-body">
           <div class="d-flex justify-content-between">
-            <h6 class="card-title mb-1">{{ r.full_name }}</h6>
+            <h2 class="card-title mb-1">{{ r.full_name }}</h2>
             <small class="text-muted">{{ r.created_at }}</small>
           </div>
           <p class="card-text mb-0">{{ r.text }}</p>

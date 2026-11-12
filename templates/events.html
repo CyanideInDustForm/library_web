@@ -3,7 +3,7 @@
 {% block title %}Мероприятия — {{ site.name }}{% endblock %}
 {% block content %}
 
-<h2 class="section-title">Мероприятия библиотеки</h2>
+<h1 class="section-title">Мероприятия библиотеки</h1>
 
 {% if not current_user %}
   <div class="alert alert-info">
@@ -63,7 +63,7 @@
       <div class="card shadow-sm mb-3" id="event-{{ e.id }}">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start">
-            <h5 class="card-title">{{ e.title }}</h5>
+            <h2 class="card-title">{{ e.title }}</h2>
             <span class="badge {{ 'text-bg-success' if e.left > 0 else 'text-bg-danger' }}">
               {% if e.left > 0 %}свободно мест: {{ e.left }}{% else %}мест нет{% endif %}
             </span>

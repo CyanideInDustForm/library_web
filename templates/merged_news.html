@@ -3,7 +3,7 @@
 
 {% block content %}
 
-<h2 class="section-title">Новости и культура</h2>
+<h1 class="section-title">Новости и культура</h1>
 
 <p class="text-muted">
   Новости библиотеки и материалы проекта «Год Литературы»
@@ -102,13 +102,13 @@
 <div class="row g-4">
 
   <section class="col-lg-6">
-    <h3 class="h5 section-title">Новости библиотеки</h3>
+    <h2 class="h5 section-title">Новости библиотеки</h2>
 
     {% for item in own_items %}
       <article class="card shadow-sm mb-3"
                id="news-{{ item.id }}">
         <div class="card-body">
-          <h4 class="h6 card-title">{{ item.title }}</h4>
+          <h3 class="h6 card-title">{{ item.title }}</h3>
           <p class="card-text">{{ item.text }}</p>
           <div class="text-muted small">
             {{ item.published }}
@@ -123,14 +123,14 @@
   </section>
 
   <section class="col-lg-6">
-    <h3 class="h5 section-title">
+    <h2 class="h5 section-title">
       {{ ext_title or "Книги и культура" }}
-    </h3>
+    </h2>
 
     {% for item in ext_items %}
       <article class="card shadow-sm mb-3">
         <div class="card-body">
-          <h4 class="h6 card-title">
+          <h3 class="h6 card-title">
             {% if item.link %}
               <a href="{{ item.link }}"
                  target="_blank"
@@ -140,7 +140,7 @@
             {% else %}
               {{ item.title }}
             {% endif %}
-          </h4>
+          </h3>
 
           <p class="card-text small text-muted">
             {{ item.text|truncate(220) }}
