@@ -3,7 +3,7 @@
 {% block title %}Приложение к БД — выдача книг{% endblock %}
 {% block content %}
 
-<h2 class="section-title">Приложение к базе данных: учёт выдачи книг</h2>
+<h1 class="section-title">Приложение к базе данных: учёт выдачи книг</h1>
 <p class="text-muted">Приложение работает с базой данных SQLite (<code>library.sqlite3</code>).
    Схема: таблицы <code>readers</code>, <code>books</code>,
    <code>librarians</code>, <code>statuses</code>, <code>loans</code>.</p>
@@ -72,6 +72,7 @@
           <div class="mb-3">
             <label class="form-label" for="loan-status">Статус</label>
             <select class="form-select" id="loan-status" name="status_id" required>
+              <option value="" selected disabled>Выберите...</option>
               {% for s in statuses %}
                 <option value="{{ s.id }}">{{ s.title }}</option>
               {% endfor %}

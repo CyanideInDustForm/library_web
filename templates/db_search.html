@@ -3,7 +3,7 @@
 {% block title %}Поиск по БД — {{ site.name }}{% endblock %}
 {% block content %}
 
-<h2 class="section-title">Поиск по базе данных</h2>
+<h1 class="section-title">Поиск по базе данных</h1>
 
 <div class="d-flex flex-wrap gap-2 mb-3">
   <a class="btn {{ 'btn-accent' if mode=='one' else 'btn-outline-accent' }}"
@@ -55,19 +55,15 @@
           </div>
           <div class="col-md-3">
             <label class="form-label">Автор</label>
-            <div class="input-group">
-              <select class="form-select" name="author">
-                <option value="">(любой)</option>
-                {% for a in authors %}
-                  <option value="{{ a.author }}"
-                  {% if request.args.get('author') == a.author %}selected{% endif %}>
-                    {{ a.author }}
-                  </option>
-                {% endfor %}
-              </select>
-              <a class="btn btn-outline-secondary" href="{{ url_for('db_admin', table='books') }}"
-                 title="Добавить книгу">+</a>
-            </div>
+            <select class="form-select" name="author">
+              <option value="">(любой)</option>
+              {% for a in authors %}
+                <option value="{{ a.author }}"
+                {% if request.args.get('author') == a.author %}selected{% endif %}>
+                  {{ a.author }}
+                </option>
+              {% endfor %}
+            </select>
           </div>
           <div class="col-md-3">
             <label class="form-label">Год издания</label>
@@ -139,19 +135,21 @@
                 </option>
               {% endfor %}
             </select>
-            <a class="btn btn-outline-secondary" href="{{ url_for('db_admin', table='readers') }}"
-               title="Добавить читателя">+</a>
           </div>
         </div>
 
         <div class="col-md-6">
-          <label class="form-label">Книга (из выдач читателя)</label>
+          <label class="form-label">Книга</label>
           <div class="input-group">
             <select class="form-select" name="book_id" id="cascadeBook">
-              <option value="">(сначала выберите читателя)</option>
+              <option value="">(любая)</option>
+              {% for b in books %}
+                <option value="{{ b.id }}"
+                {% if request.args.get('book_id') == b.id|string %}selected{% endif %}>
+                  {{ b.title }}
+                </option>
+              {% endfor %}
             </select>
-            <a class="btn btn-outline-secondary" href="{{ url_for('db_admin', table='books') }}"
-               title="Добавить книгу">+</a>
           </div>
         </div>
 
@@ -159,7 +157,11 @@
           <button class="btn btn-accent" type="submit">Найти</button>
         </div>
       </form>
-      <div class="form-text">Шаг 2 заполняется через API, шаг 3 — GET‑поиск.</div>
+      <div class="form-text">
+        Выберите книгу — и увидите таблицу выдач: каким читателям её выдавали.
+        При выборе читателя список книг сузится до его выдач (API-каскад);
+        читатель + книга — выдачи конкретного читателя по конкретной книге.
+      </div>
     </div>
   </div>
 

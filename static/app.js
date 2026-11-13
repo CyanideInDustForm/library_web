@@ -40,19 +40,23 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // cascade: reader -> books in loans
+  // cascade: reader -> books in loans (полный список книг рендерит сервер)
   const cascadeReader = document.getElementById("cascadeReader");
   const cascadeBook = document.getElementById("cascadeBook");
 
   if (cascadeReader && cascadeBook) {
+    // полный список книг — сохраняем, чтобы вернуть его при сбросе читателя
+    const initialBookOptions = cascadeBook.innerHTML;
+
     cascadeReader.addEventListener("change", async () => {
-      cascadeBook.innerHTML = `<option value="">(загрузка...)</option>`;
       const rid = cascadeReader.value;
 
       if (!rid) {
-        cascadeBook.innerHTML = `<option value="">(сначала выберите читателя)</option>`;
+        cascadeBook.innerHTML = initialBookOptions;
         return;
       }
+
+      cascadeBook.innerHTML = `<option value="">(загрузка...)</option>`;
 
       try {
         const res = await fetch(`/api/options/books-by-reader?reader_id=${encodeURIComponent(rid)}`);

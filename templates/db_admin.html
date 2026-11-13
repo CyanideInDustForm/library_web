@@ -3,7 +3,7 @@
 {% block title %}Администрирование БД — {{ site.name }}{% endblock %}
 {% block content %}
 
-<h2 class="section-title">Администрирование базы данных</h2>
+<h1 class="section-title">Администрирование базы данных</h1>
 
 <div class="card shadow-sm mb-3">
   <div class="card-header bg-white fw-semibold">Выбор таблицы</div>
@@ -99,24 +99,28 @@
           <div class="col-md-3">
             <label class="form-label">reader_id</label>
             <select class="form-select" name="reader_id" required>
+              <option value="" selected disabled>Выберите...</option>
               {% for r in readers %}<option value="{{ r.id }}">{{ r.full_name }}</option>{% endfor %}
             </select>
           </div>
           <div class="col-md-3">
             <label class="form-label">book_id</label>
             <select class="form-select" name="book_id" required>
+              <option value="" selected disabled>Выберите...</option>
               {% for b in books %}<option value="{{ b.id }}">{{ b.title }}</option>{% endfor %}
             </select>
           </div>
           <div class="col-md-3">
             <label class="form-label">librarian_id</label>
             <select class="form-select" name="librarian_id" required>
+              <option value="" selected disabled>Выберите...</option>
               {% for lb in librarians %}<option value="{{ lb.id }}">{{ lb.full_name }}</option>{% endfor %}
             </select>
           </div>
           <div class="col-md-3">
             <label class="form-label">status_id</label>
             <select class="form-select" name="status_id" required>
+              <option value="" selected disabled>Выберите...</option>
               {% for s in statuses %}<option value="{{ s.id }}">{{ s.title }}</option>{% endfor %}
             </select>
           </div>
@@ -151,15 +155,20 @@
 </div>
 
 <hr>
-<h5 class="mt-3">Содержимое таблицы {{ table }}</h5>
+<h2 class="mt-3">Содержимое таблицы {{ table }}</h2>
 
 <div class="table-responsive">
   <table class="table table-sm table-striped">
     <thead>
       <tr>
         {% if rows %}
+          {# читаемые подписи для колонок с JOIN-именами (таблица loans) #}
+          {% set pretty = {
+            'reader_name': 'Читатель', 'book_title': 'Книга',
+            'librarian_name': 'Библиотекарь', 'status_title': 'Статус'
+          } %}
           {% for key in rows[0].keys() %}
-            <th>{{ key }}</th>
+            <th>{{ pretty.get(key, key) }}</th>
           {% endfor %}
           <th>Действия</th>
         {% endif %}
@@ -172,6 +181,16 @@
             <td>{{ v }}</td>
           {% endfor %}
           <td>
+            {% if table != 'statuses' %}
+              <button type="button" class="btn btn-sm btn-warning mb-1"
+                      data-bs-toggle="modal" data-bs-target="#editModal"
+                      data-edit-url="{{ url_for('admin_update', table=table, id=row['id']) }}"
+                      {% for k, v in row.items() %}
+                        data-{{ k }}="{{ v if v is not none else '' }}"
+                      {% endfor %}>
+                Изменить
+              </button>
+            {% endif %}
             <form method="post"
                   action="{{ url_for('admin_delete', table=table, id=row['id']) }}"
                   onsubmit="return confirm('Удалить запись?');">
@@ -183,5 +202,138 @@
     </tbody>
   </table>
 </div>
+
+<!-- ==================== Модальное окно «Изменить запись» ==================== -->
+<div class="modal fade" id="editModal" tabindex="-1" role="dialog" aria-labelledby="editModalLabel" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title fs-5" id="editModalLabel">Изменить запись ({{ table }})</h2>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Закрыть"></button>
+      </div>
+      <form method="post" id="editForm" class="needs-validation" novalidate>
+        <div class="modal-body">
+          {% if table == 'readers' %}
+            <div class="mb-3">
+              <label class="form-label">reader_card_number</label>
+              <input class="form-control" name="reader_card_number" minlength="1" maxlength="20" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">full_name</label>
+              <input class="form-control" name="full_name" minlength="5" maxlength="30" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">phone (опц.)</label>
+              <input class="form-control" name="phone" maxlength="15">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">email (опц.)</label>
+              <input class="form-control" name="email" maxlength="30">
+            </div>
+
+          {% elif table == 'books' %}
+            <div class="mb-3">
+              <label class="form-label">inventory_number</label>
+              <input class="form-control" name="inventory_number" minlength="1" maxlength="30" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">title</label>
+              <input class="form-control" name="title" minlength="5" maxlength="50" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">author</label>
+              <input class="form-control" name="author" minlength="5" maxlength="30" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">publish_year</label>
+              <input class="form-control" type="number" name="publish_year" min="1800" max="2026" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">isbn (13)</label>
+              <input class="form-control" name="isbn" minlength="13" maxlength="13" required>
+            </div>
+
+          {% elif table == 'librarians' %}
+            <div class="mb-3">
+              <label class="form-label">employee_number</label>
+              <input class="form-control" name="employee_number" minlength="1" maxlength="10" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">full_name</label>
+              <input class="form-control" name="full_name" minlength="5" maxlength="30" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">phone (опц.)</label>
+              <input class="form-control" name="phone" maxlength="15">
+            </div>
+
+          {% elif table == 'loans' %}
+            <div class="mb-3">
+              <label class="form-label">reader_id</label>
+              <select class="form-select" name="reader_id" required>
+                <option value="" selected disabled>Выберите...</option>
+                {% for r in readers %}<option value="{{ r.id }}">{{ r.full_name }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">book_id</label>
+              <select class="form-select" name="book_id" required>
+                <option value="" selected disabled>Выберите...</option>
+                {% for b in books %}<option value="{{ b.id }}">{{ b.title }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">librarian_id</label>
+              <select class="form-select" name="librarian_id" required>
+                <option value="" selected disabled>Выберите...</option>
+                {% for lb in librarians %}<option value="{{ lb.id }}">{{ lb.full_name }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">status_id</label>
+              <select class="form-select" name="status_id" required>
+                <option value="" selected disabled>Выберите...</option>
+                {% for s in statuses %}<option value="{{ s.id }}">{{ s.title }}</option>{% endfor %}
+              </select>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">issue_date</label>
+              <input class="form-control" type="date" name="issue_date" min="2026-01-01" max="{{ today }}" required>
+            </div>
+            <div class="mb-3">
+              <label class="form-label">due_date</label>
+              <input class="form-control" type="date" name="due_date" min="2026-01-01">
+            </div>
+            <div class="mb-3">
+              <label class="form-label">return_date (опц.)</label>
+              <input class="form-control" type="date" name="return_date" min="2026-01-01" max="{{ today }}">
+            </div>
+          {% endif %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Отмена</button>
+          <button type="submit" class="btn btn-accent">Сохранить</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Заполняем форму в модальном окне данными выбранной строки
+  document.addEventListener("DOMContentLoaded", () => {
+    const modal = document.getElementById("editModal");
+    if (!modal) return;
+    modal.addEventListener("show.bs.modal", (event) => {
+      const btn = event.relatedTarget;
+      const form = document.getElementById("editForm");
+      form.action = btn.dataset.editUrl;
+      form.querySelectorAll("[name]").forEach((el) => {
+        const value = btn.dataset[el.name];
+        el.value = value !== undefined ? value : "";
+      });
+    });
+  });
+</script>
 
 {% endblock %}

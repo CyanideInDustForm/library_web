@@ -3,13 +3,13 @@
 {% block title %}Архив новостей — {{ site.name }}{% endblock %}
 {% block content %}
 
-<h2 class="section-title">Архив новостей</h2>
+<h1 class="section-title">Архив новостей</h1>
 <p class="text-muted">Всего новостей: {{ total }}. Показано {{ news|length }} на странице {{ page }} из {{ pages }}.</p>
 
 {% for n in news %}
   <article class="card shadow-sm mb-3" id="news-{{ n.id }}">
     <div class="card-body">
-      <h5 class="card-title">{{ n.title }}</h5>
+      <h2 class="card-title">{{ n.title }}</h2>
       <p class="card-text">{{ n.body }}</p>
       <div class="text-muted small">🕒 {{ n.published_at }}</div>
     </div>

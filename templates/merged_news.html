@@ -1,15 +1,39 @@
 {% extends "base.html" %}
-{% block title %}Новости и культура — {{ site.name }}{% endblock %}
+{% block title %}Новости — {{ site.name }}{% endblock %}
 
 {% block content %}
 
-<h2 class="section-title">Новости и культура</h2>
+<h1 class="section-title">Новости</h1>
 
 <p class="text-muted">
-  Новости библиотеки и материалы проекта «Год Литературы»
-  собраны на одной странице.
+  {% if view == "all" %}
+    Общая лента: новости библиотеки и внешняя RSS-лента одним потоком,
+    отсортированным по дате публикации.
+  {% elif view == "site" %}
+    Новости, которые публикует наша библиотека (хранятся в базе данных сайта).
+  {% else %}
+    Новости из выбранной внешней RSS-ленты.
+  {% endif %}
 </p>
 
+{# --- Три кнопки-вкладки: общие / сайт / rss --- #}
+<div class="mb-4 d-flex flex-wrap gap-2" role="group" aria-label="Тип новостей">
+  <a class="btn {{ 'btn-accent' if view == 'all' else 'btn-outline-accent' }}"
+     href="{{ url_for('merged_news', view='all', q=query, feed=feed_url) }}">
+    Общие новости
+  </a>
+  <a class="btn {{ 'btn-accent' if view == 'site' else 'btn-outline-accent' }}"
+     href="{{ url_for('merged_news', view='site', q=query) }}">
+    Новости сайта
+  </a>
+  <a class="btn {{ 'btn-accent' if view == 'rss' else 'btn-outline-accent' }}"
+     href="{{ url_for('merged_news', view='rss', q=query, feed=feed_url) }}">
+    Новости из RSS-ленты
+  </a>
+</div>
+
+{# --- Смена RSS-ленты: только для общих новостей и RSS --- #}
+{% if view in ("all", "rss") %}
 <div class="card shadow-sm mb-3">
   <div class="card-header bg-white fw-semibold">Источник внешних новостей</div>
   <div class="card-body">
@@ -17,6 +41,7 @@
           action="{{ url_for('merged_news') }}"
           class="row g-2 align-items-end">
 
+      <input type="hidden" name="view" value="{{ view }}">
       <input type="hidden" name="q" value="{{ query }}">
 
       <div class="col-md-9">
@@ -37,7 +62,9 @@
     </form>
   </div>
 </div>
+{% endif %}
 
+{# --- Поиск: во всех трёх режимах --- #}
 <div class="card shadow-sm mb-4">
   <div class="card-header bg-white fw-semibold">Поиск по новостям</div>
   <div class="card-body">
@@ -45,7 +72,10 @@
           action="{{ url_for('merged_news') }}"
           class="row g-2">
 
-      <input type="hidden" name="feed" value="{{ feed_url }}">
+      <input type="hidden" name="view" value="{{ view }}">
+      {% if view in ("all", "rss") %}
+        <input type="hidden" name="feed" value="{{ feed_url }}">
+      {% endif %}
 
       <div class="col-md-10">
         <label class="visually-hidden" for="news-query">
@@ -67,7 +97,7 @@
     {% if query %}
       <div class="form-text mt-2">
         Результаты по запросу «{{ query }}».
-        <a href="{{ url_for('merged_news', feed=feed_url) }}">
+        <a href="{{ url_for('merged_news', view=view, feed=feed_url) }}">
           Сбросить поиск
         </a>
       </div>
@@ -79,6 +109,7 @@
   <div class="alert alert-warning">{{ ext_error }}</div>
 {% endif %}
 
+{% if view in ("all", "site") %}
 <div class="mb-3 d-flex gap-2">
   <a class="btn btn-outline-accent btn-sm"
      href="{{ url_for('export_news_xml') }}"
@@ -92,74 +123,131 @@
      href="{{ url_for('export_news_tagged') }}"
      target="_blank">TXT</a>
 </div>
-
-{% if query and not own_items and not ext_items %}
-  <div class="alert alert-info">
-    По запросу «{{ query }}» новости не найдены.
-  </div>
 {% endif %}
 
-<div class="row g-4">
+{% if query %}
+  {% if (view == 'all' and not merged_items)
+        or (view == 'site' and not own_items)
+        or (view == 'rss' and not ext_items) %}
+    <div class="alert alert-info">
+      По запросу «{{ query }}» новости не найдены.
+    </div>
+  {% endif %}
+{% endif %}
 
-  <section class="col-lg-6">
-    <h3 class="h5 section-title">Новости библиотеки</h3>
+{# =========================================================
+   ЛЕНТА
+   ========================================================= #}
 
-    {% for item in own_items %}
-      <article class="card shadow-sm mb-3"
-               id="news-{{ item.id }}">
-        <div class="card-body">
-          <h4 class="h6 card-title">{{ item.title }}</h4>
-          <p class="card-text">{{ item.text }}</p>
-          <div class="text-muted small">
-            {{ item.published }}
-          </div>
+{% if view == "all" %}
+  {# Одна общая лента: свои и внешние новости вперемешку, по дате ↓ #}
+  {% for item in merged_items %}
+    <article class="card shadow-sm mb-3"
+             {% if item.own %}id="news-{{ item.id }}"{% endif %}>
+      <div class="card-body">
+        <div class="mb-2">
+          {% if item.own %}
+            <span class="badge text-bg-accent">{{ item.source }}</span>
+          {% else %}
+            <span class="badge text-bg-secondary">{{ item.source }}</span>
+          {% endif %}
         </div>
-      </article>
-    {% else %}
-      {% if not query %}
-        <div class="text-muted mb-3">Новостей библиотеки пока нет.</div>
-      {% endif %}
-    {% endfor %}
-  </section>
-
-  <section class="col-lg-6">
-    <h3 class="h5 section-title">
-      {{ ext_title or "Книги и культура" }}
-    </h3>
-
-    {% for item in ext_items %}
-      <article class="card shadow-sm mb-3">
-        <div class="card-body">
-          <h4 class="h6 card-title">
-            {% if item.link %}
-              <a href="{{ item.link }}"
-                 target="_blank"
-                 rel="noopener noreferrer">
-                {{ item.title }}
-              </a>
-            {% else %}
+        <h3 class="h6 card-title">
+          {% if item.own %}
+            {{ item.title }}
+          {% elif item.link %}
+            <a href="{{ item.link }}"
+               target="_blank"
+               rel="noopener noreferrer">
               {{ item.title }}
-            {% endif %}
-          </h4>
+            </a>
+          {% else %}
+            {{ item.title }}
+          {% endif %}
+        </h3>
 
+        {% if item.own %}
+          <p class="card-text">{{ item.text }}</p>
+        {% else %}
           <p class="card-text small text-muted">
             {{ item.text|truncate(220) }}
           </p>
+        {% endif %}
 
-          <div class="text-muted small">
-            {{ item.published }}
-          </div>
-        </div>
-      </article>
-    {% else %}
-      {% if not query %}
-        <div class="text-muted mb-3">Материалы внешней ленты недоступны.</div>
+        <div class="text-muted small">{{ item.published }}</div>
+      </div>
+    </article>
+  {% else %}
+    <div class="text-muted mb-3">
+      {% if query %}
+        По запросу «{{ query }}» ничего не найдено.
+      {% else %}
+        Новостей пока нет — добавьте первую ниже.
       {% endif %}
-    {% endfor %}
-  </section>
+    </div>
+  {% endfor %}
 
-</div>
+{% elif view == "site" %}
+  {# Только новости сайта из БД #}
+  <h2 class="h5 section-title">Новости библиотеки</h2>
 
+  {% for item in own_items %}
+    <article class="card shadow-sm mb-3" id="news-{{ item.id }}">
+      <div class="card-body">
+        <h3 class="h6 card-title">{{ item.title }}</h3>
+        <p class="card-text">{{ item.text }}</p>
+        <div class="text-muted small">{{ item.published }}</div>
+      </div>
+    </article>
+  {% else %}
+    <div class="text-muted mb-3">
+      {% if not query %}Новостей библиотеки пока нет.{% endif %}
+    </div>
+  {% endfor %}
+
+{% else %}
+  {# Только внешняя RSS-лента #}
+  <h2 class="h5 section-title">
+    {{ ext_title or "Внешняя RSS-лента" }}
+  </h2>
+
+  {% for item in ext_items %}
+    <article class="card shadow-sm mb-3">
+      <div class="card-body">
+        <h3 class="h6 card-title">
+          {% if item.link %}
+            <a href="{{ item.link }}"
+               target="_blank"
+               rel="noopener noreferrer">
+              {{ item.title }}
+            </a>
+          {% else %}
+            {{ item.title }}
+          {% endif %}
+        </h3>
+
+        <p class="card-text small text-muted">
+          {{ item.text|truncate(220) }}
+        </p>
+
+        <div class="text-muted small">{{ item.published }}</div>
+      </div>
+    </article>
+  {% else %}
+    <div class="text-muted mb-3">
+      {% if not query %}
+        {% if ext_error %}
+          Материалы ленты недоступны — проверьте адрес или попробуйте позже.
+        {% else %}
+          В ленте пока нет записей.
+        {% endif %}
+      {% endif %}
+    </div>
+  {% endfor %}
+{% endif %}
+
+{# --- Добавление новости сайта: только в общих новостях и новостях сайта --- #}
+{% if view in ("all", "site") %}
 <details class="card shadow-sm mt-4">
   <summary class="card-header bg-white fw-semibold">
     Добавить новость библиотеки
@@ -170,6 +258,8 @@
           action="{{ url_for('news_add') }}"
           class="needs-validation"
           novalidate>
+
+      <input type="hidden" name="view" value="{{ view }}">
 
       <div class="mb-3">
         <label class="form-label" for="news-title">Заголовок</label>
@@ -198,5 +288,6 @@
     </form>
   </div>
 </details>
+{% endif %}
 
 {% endblock %}
