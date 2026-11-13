@@ -139,10 +139,16 @@
         </div>
 
         <div class="col-md-6">
-          <label class="form-label">Книга (из выдач читателя)</label>
+          <label class="form-label">Книга</label>
           <div class="input-group">
             <select class="form-select" name="book_id" id="cascadeBook">
-              <option value="">(сначала выберите читателя)</option>
+              <option value="">(любая)</option>
+              {% for b in books %}
+                <option value="{{ b.id }}"
+                {% if request.args.get('book_id') == b.id|string %}selected{% endif %}>
+                  {{ b.title }}
+                </option>
+              {% endfor %}
             </select>
           </div>
         </div>
@@ -151,7 +157,11 @@
           <button class="btn btn-accent" type="submit">Найти</button>
         </div>
       </form>
-      <div class="form-text">Шаг 2 заполняется через API, шаг 3 — GET‑поиск.</div>
+      <div class="form-text">
+        Выберите книгу — и увидите таблицу выдач: каким читателям её выдавали.
+        При выборе читателя список книг сузится до его выдач (API-каскад);
+        читатель + книга — выдачи конкретного читателя по конкретной книге.
+      </div>
     </div>
   </div>
 

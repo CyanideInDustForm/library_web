@@ -432,7 +432,10 @@ def create_app() -> Flask:
             flash(str(e), "danger")
         except Exception:
             flash("Не удалось добавить новость (проверьте длину полей).", "danger")
-        return redirect(url_for("merged_news"))
+        view = request.form.get("view") or "all"
+        if view not in ("all", "site"):
+            view = "all"
+        return redirect(url_for("merged_news", view=view))
 
     # =========================================================
     #   СЕРВИСЫ: погода, курсы валют, топ страниц
@@ -749,7 +752,13 @@ def create_app() -> Flask:
 
     @app.get("/merged-news")
     def merged_news():
-        """Новости библиотеки и внешняя RSS в двух колонках."""
+        """Новости в трёх режимах: общая лента (БД + внешняя RSS,
+        одной лентой по дате), только новости сайта из БД,
+        только внешняя RSS-лента."""
+        view = request.args.get("view", "all")
+        if view not in ("all", "site", "rss"):
+            view = "all"
+
         feed_url = (
             request.args.get("feed") or DEFAULT_EXTERNAL_FEED
         ).strip()
@@ -767,6 +776,7 @@ def create_app() -> Flask:
             "link": url_for("merged_news") + f"#news-{n['id']}",
             "text": n["body"],
             "published": n["published_at"],
+            "sort_key": datetime.strptime(n["published_at"], "%Y-%m-%d %H:%M"),
             "source": SITE["name"],
             "own": True,
         } for n in own]
@@ -775,30 +785,31 @@ def create_app() -> Flask:
         ext_title = ""
         ext_error = None
 
-        raw = (
-            fetch_bytes(feed_url, timeout=8)
-            or fetch_bytes_fallback(feed_url, timeout=8)
-        )
-
-        if raw:
-            try:
-                parsed = parse_external_feed(raw)
-                ext_title = parsed["title"]
-                ext_items = [
-                    dict(item, source=ext_title, own=False)
-                    for item in parsed["items"]
-                ]
-            except Exception:
-                ext_error = (
-                    "Лента загрузилась, но не распозналась как RSS/Atom."
-                )
-        else:
-            ext_error = (
-                "Внешняя лента сейчас недоступна. "
-                "Новости библиотеки при этом продолжают работать."
+        if view in ("all", "rss"):
+            raw = (
+                fetch_bytes(feed_url, timeout=8)
+                or fetch_bytes_fallback(feed_url, timeout=8)
             )
 
-        # Отдельный поиск по новостям сайта и внешней RSS.
+            if raw:
+                try:
+                    parsed = parse_external_feed(raw)
+                    ext_title = parsed["title"]
+                    ext_items = [
+                        dict(item, source=ext_title, own=False)
+                        for item in parsed["items"]
+                    ]
+                except Exception:
+                    ext_error = (
+                        "Лента загрузилась, но не распозналась как RSS/Atom."
+                    )
+            else:
+                ext_error = (
+                    "Внешняя лента сейчас недоступна. "
+                    "Новости библиотеки при этом продолжают работать."
+                )
+
+        # Поиск по новостям сайта и внешней RSS.
         if needle:
             own_items = [
                 item for item in own_items
@@ -809,13 +820,22 @@ def create_app() -> Flask:
                 if needle in f"{item['title']} {item['text']}".casefold()
             ]
 
+        # Общая лента — одна: свои и внешние новости вперемешку, по дате ↓.
+        merged_items = sorted(
+            own_items + ext_items,
+            key=lambda it: it["sort_key"],
+            reverse=True,
+        )
+
         return render_template(
             "merged_news.html",
+            view=view,
             feed_url=feed_url,
             ext_title=ext_title,
             ext_error=ext_error,
             own_items=own_items,
             ext_items=ext_items,
+            merged_items=merged_items,
             query=query,
         )
 
@@ -1038,7 +1058,26 @@ def create_app() -> Flask:
             meta["reader_id"] = reader_id
             meta["book_id"] = book_id
 
-            if reader_id:
+            if book_id and not reader_id:
+                # выбрана только книга: показываем, каким читателям её выдавали
+                sql = """
+                    SELECT
+                      r.full_name AS reader_name,
+                      b.title AS book_title,
+                      l.issue_date, l.due_date, l.return_date,
+                      s.title AS status_title,
+                      lb.full_name AS librarian_name
+                    FROM loans l
+                    JOIN readers r ON r.id = l.reader_id
+                    JOIN books b ON b.id = l.book_id
+                    JOIN statuses s ON s.id = l.status_id
+                    JOIN librarians lb ON lb.id = l.librarian_id
+                    WHERE l.book_id = ?
+                    ORDER BY l.issue_date DESC, l.id DESC LIMIT 200;
+                """
+                results = q_all(sql, (int(book_id),))
+
+            elif reader_id:
                 sql = """
                     SELECT
                       r.full_name AS reader_name,
@@ -1076,6 +1115,7 @@ def create_app() -> Flask:
             mode=mode, meta=meta, results=results,
             readers=readers, librarians=librarians,
             statuses=statuses, authors=authors,
+            books=q_all("SELECT id, title FROM books ORDER BY title;"),
         )
 
     @app.get("/api/options/books-by-reader")
