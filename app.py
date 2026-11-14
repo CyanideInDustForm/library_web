@@ -38,29 +38,6 @@ EDITABLE_COLUMNS = {
 
 DATE_MIN = date(2026, 1, 1)
 
-
-def init_database() -> None:
-    """Создаёт схему и наполняет БД, если их нет.
-    Нужно для деплоя: на чистом сервере (Railway и т.п.) файла БД нет."""
-    os.makedirs(DATA_DIR, exist_ok=True)
-    schema_path = os.path.join(ROOT, "schema.sql")
-    conn = sqlite3.connect(DB_PATH)
-    try:
-        exists = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='page_visits';"
-        ).fetchone()
-        if exists is None:
-            with open(schema_path, encoding="utf-8") as f:
-                conn.executescript(f.read())
-            conn.commit()
-        is_empty = conn.execute("SELECT COUNT(*) FROM news;").fetchone()[0] == 0
-    finally:
-        conn.close()
-    if is_empty:
-        import seed  # локальный импорт, чтобы не тянуть генератор данных зря
-        seed.seed_db(os.path.basename(DB_PATH), 10)
-
-
 # --- Контактные данные организации (выводятся в подвале каждой страницы) ---
 SITE = {
     "name": "Городская библиотека",
@@ -1667,7 +1644,6 @@ def create_app() -> Flask:
 
 
 app = create_app()
-init_database()
 
 if __name__ == "__main__":
     app.run(debug=True)
