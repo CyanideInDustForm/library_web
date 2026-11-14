@@ -24,6 +24,33 @@ DATA_DIR = os.environ.get("DATA_DIR", os.path.join(ROOT, "data"))
 os.makedirs(DATA_DIR, exist_ok=True)
 DB_PATH = os.path.join(DATA_DIR, "library.sqlite3")
 
+
+def _bootstrap_db() -> None:
+    """Если БД на томе пуста или отсутствует — копируем поставляемую в репозитории."""
+    bundled = os.path.join(ROOT, "data", "library.sqlite3")
+    if os.path.abspath(bundled) == os.path.abspath(DB_PATH) or not os.path.exists(bundled):
+        return
+    has_tables = False
+    if os.path.exists(DB_PATH):
+        con = sqlite3.connect(DB_PATH)
+        try:
+            has_tables = con.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='page_visits'"
+            ).fetchone() is not None
+        finally:
+            con.close()
+    if not has_tables:
+        src = sqlite3.connect(bundled)
+        dst = sqlite3.connect(DB_PATH)
+        try:
+            src.backup(dst)
+        finally:
+            dst.close()
+            src.close()
+
+
+_bootstrap_db()
+
 ALLOWED_ADMIN_TABLES = {"readers", "books", "librarians", "statuses", "loans"}
 
 # таблицы, записи которых можно редактировать (statuses — фиксированный справочник)
