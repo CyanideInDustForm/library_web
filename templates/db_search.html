@@ -32,26 +32,54 @@
 
         {% if meta.entity == 'readers' %}
           <div class="col-md-3">
-            <label class="form-label">ФИО начинается с</label>
-            <input class="form-control" name="full_name_prefix"
-                   value="{{ request.args.get('full_name_prefix','') }}">
+            <label class="form-label">ФИО</label>
+            <select class="form-select" name="full_name">
+              <option value="">(любой)</option>
+              {% for r in readers %}
+                <option value="{{ r.full_name }}"
+                {% if request.args.get('full_name') == r.full_name %}selected{% endif %}>
+                  {{ r.full_name }}
+                </option>
+              {% endfor %}
+            </select>
           </div>
           <div class="col-md-3">
-            <label class="form-label">Билет начинается с</label>
-            <input class="form-control" name="card_prefix"
-                   value="{{ request.args.get('card_prefix','') }}">
+            <label class="form-label">Читательский билет</label>
+            <select class="form-select" name="card_no">
+              <option value="">(любой)</option>
+              {% for c in reader_cards %}
+                <option value="{{ c.reader_card_number }}"
+                {% if request.args.get('card_no') == c.reader_card_number %}selected{% endif %}>
+                  {{ c.reader_card_number }}
+                </option>
+              {% endfor %}
+            </select>
           </div>
           <div class="col-md-3">
-            <label class="form-label">Телефон содержит</label>
-            <input class="form-control" name="phone_contains"
-                   value="{{ request.args.get('phone_contains','') }}">
+            <label class="form-label">Телефон</label>
+            <select class="form-select" name="phone">
+              <option value="">(любой)</option>
+              {% for p in phones %}
+                <option value="{{ p.phone }}"
+                {% if request.args.get('phone') == p.phone %}selected{% endif %}>
+                  {{ p.phone }}
+                </option>
+              {% endfor %}
+            </select>
           </div>
 
         {% elif meta.entity == 'books' %}
           <div class="col-md-3">
-            <label class="form-label">Название начинается с</label>
-            <input class="form-control" name="title_prefix"
-                   value="{{ request.args.get('title_prefix','') }}">
+            <label class="form-label">Название</label>
+            <select class="form-select" name="title">
+              <option value="">(любое)</option>
+              {% for b in books %}
+                <option value="{{ b.title }}"
+                {% if request.args.get('title') == b.title %}selected{% endif %}>
+                  {{ b.title }}
+                </option>
+              {% endfor %}
+            </select>
           </div>
           <div class="col-md-3">
             <label class="form-label">Автор</label>
@@ -67,9 +95,15 @@
           </div>
           <div class="col-md-3">
             <label class="form-label">Год издания</label>
-            <input class="form-control" type="number" name="publish_year"
-                   min="1800" max="2026"
-                   value="{{ request.args.get('publish_year','') }}">
+            <select class="form-select" name="publish_year">
+              <option value="">(любой)</option>
+              {% for y in years %}
+                <option value="{{ y.publish_year }}"
+                {% if request.args.get('publish_year') == y.publish_year|string %}selected{% endif %}>
+                  {{ y.publish_year }}
+                </option>
+              {% endfor %}
+            </select>
           </div>
 
         {% elif meta.entity == 'loans' %}
@@ -102,10 +136,16 @@
             </div>
           </div>
           <div class="col-md-3">
-            <label class="form-label">Выдача начиная с</label>
-            <input class="form-control" type="date" name="issue_from"
-                   min="2026-01-01"
-                   value="{{ request.args.get('issue_from','') }}">
+            <label class="form-label">Дата выдачи</label>
+            <select class="form-select" name="issue_date">
+              <option value="">(любая)</option>
+              {% for d in loan_dates %}
+                <option value="{{ d.issue_date }}"
+                {% if request.args.get('issue_date') == d.issue_date %}selected{% endif %}>
+                  {{ d.issue_date }}
+                </option>
+              {% endfor %}
+            </select>
           </div>
         {% endif %}
 
@@ -126,8 +166,9 @@
         <div class="col-md-6">
           <label class="form-label">Читатель</label>
           <div class="input-group">
-            <select class="form-select" name="reader_id" id="cascadeReader">
-              <option value="">(выберите)</option>
+            <select class="form-select" name="reader_id" id="cascadeReader"
+                    onchange="this.form.submit()">
+              <option value="">(любой)</option>
               {% for r in readers %}
                 <option value="{{ r.id }}"
                 {% if request.args.get('reader_id') == r.id|string %}selected{% endif %}>
@@ -142,7 +183,7 @@
           <label class="form-label">Книга</label>
           <div class="input-group">
             <select class="form-select" name="book_id" id="cascadeBook">
-              <option value="">(любая)</option>
+              <option value="">{% if request.args.get('reader_id') %}(книги выбранного читателя){% else %}(любая){% endif %}</option>
               {% for b in books %}
                 <option value="{{ b.id }}"
                 {% if request.args.get('book_id') == b.id|string %}selected{% endif %}>
@@ -158,9 +199,10 @@
         </div>
       </form>
       <div class="form-text">
-        Выберите книгу — и увидите таблицу выдач: каким читателям её выдавали.
-        При выборе читателя список книг сузится до его выдач (API-каскад);
-        читатель + книга — выдачи конкретного читателя по конкретной книге.
+        Синхронизация списков: как только выбран читатель, список книг автоматически
+        обновляется и показывает только книги из его выдач. Затем можно выбрать книгу —
+        увидите выдачи конкретного читателя по конкретной книге. Без читателя
+        список книг содержит весь фонд, и можно искать по книге отдельно.
       </div>
     </div>
   </div>

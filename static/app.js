@@ -40,49 +40,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // cascade: reader -> books in loans (полный список книг рендерит сервер)
-  const cascadeReader = document.getElementById("cascadeReader");
-  const cascadeBook = document.getElementById("cascadeBook");
-
-  if (cascadeReader && cascadeBook) {
-    // полный список книг — сохраняем, чтобы вернуть его при сбросе читателя
-    const initialBookOptions = cascadeBook.innerHTML;
-
-    cascadeReader.addEventListener("change", async () => {
-      const rid = cascadeReader.value;
-
-      if (!rid) {
-        cascadeBook.innerHTML = initialBookOptions;
-        return;
-      }
-
-      cascadeBook.innerHTML = `<option value="">(загрузка...)</option>`;
-
-      try {
-        const res = await fetch(`/api/options/books-by-reader?reader_id=${encodeURIComponent(rid)}`);
-        const data = await res.json();
-
-        if (!res.ok || !data.ok) throw new Error(data.error || "Ошибка");
-
-        cascadeBook.innerHTML = `<option value="">(любая)</option>`;
-        if (!data.items.length) {
-          cascadeBook.innerHTML = `<option value="">(нет выдач)</option>`;
-          return;
-        }
-
-        for (const item of data.items) {
-          const opt = document.createElement("option");
-          opt.value = item.value;
-          opt.textContent = item.label;
-          cascadeBook.appendChild(opt);
-        }
-      } catch (err) {
-        cascadeBook.innerHTML = `<option value="">(ошибка)</option>`;
-        showToast(`Ошибка каскада: ${err.message}`, "danger");
-      }
-    });
-  }
-
   // ==================== Сервис «Карта с геолокацией» ====================
   const mapEl = document.getElementById("map");
   if (mapEl && window.L) {

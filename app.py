@@ -454,7 +454,7 @@ def create_app() -> Flask:
                 "INSERT INTO news(title, body, published_at) VALUES (?, ?, ?);",
                 (title, body, published),
             )
-            flash("Новость опубликована.", "success")
+            flash("Новость записана в базу данных и опубликована.", "success")
         except ValueError as e:
             flash(str(e), "danger")
         except Exception:
@@ -786,9 +786,17 @@ def create_app() -> Flask:
         if view not in ("all", "site", "rss"):
             view = "all"
 
-        feed_url = (
-            request.args.get("feed") or DEFAULT_EXTERNAL_FEED
-        ).strip()
+        # Лента запоминается в сессии. Сообщения показываем только когда
+        # адрес реально изменился, а не при каждом переходе между вкладками.
+        feed_arg = (request.args.get("feed") or "").strip()
+        prev_feed = session.get("feed_url")
+        if feed_arg and feed_arg != prev_feed:
+            session["feed_url"] = feed_arg
+            flash(f"Запрос на подключение ленты: {feed_arg}", "info")
+        elif feed_arg:
+            session["feed_url"] = feed_arg
+        feed_url = session.get("feed_url") or DEFAULT_EXTERNAL_FEED
+        feed_changed = bool(feed_arg and feed_arg != prev_feed)
         query = (request.args.get("q") or "").strip()
         needle = query.casefold()
 
@@ -826,15 +834,32 @@ def create_app() -> Flask:
                         dict(item, source=ext_title, own=False)
                         for item in parsed["items"]
                     ]
+                    if feed_changed:
+                        flash(
+                            f"Подключена RSS-лента «{ext_title}» "
+                            f"({feed_url}): загружено записей: {len(ext_items)}.",
+                            "success",
+                        )
                 except Exception:
                     ext_error = (
                         "Лента загрузилась, но не распозналась как RSS/Atom."
                     )
+                    if feed_changed:
+                        flash(
+                            "Подключить ленту не удалось: формат не распознан.",
+                            "danger",
+                        )
             else:
                 ext_error = (
                     "Внешняя лента сейчас недоступна. "
                     "Новости библиотеки при этом продолжают работать."
                 )
+                if feed_changed:
+                    flash(
+                        "Подключить ленту не удалось: адрес не отвечает. "
+                        "Показаны новости сайта.",
+                        "danger",
+                    )
 
         # Поиск по новостям сайта и внешней RSS.
         if needle:
@@ -1001,21 +1026,23 @@ def create_app() -> Flask:
             entity = request.args.get("entity", "readers")
             meta["entity"] = entity
 
+            # Все критерии — только через выпадающие списки: значения берутся
+            # из самой БД, поэтому результат гарантирован (пусто не бывает).
             if entity == "readers":
-                name_prefix = (request.args.get("full_name_prefix") or "").strip()
-                card_prefix = (request.args.get("card_prefix") or "").strip()
-                phone_contains = (request.args.get("phone_contains") or "").strip()
+                full_name = (request.args.get("full_name") or "").strip()
+                card_no = (request.args.get("card_no") or "").strip()
+                phone = (request.args.get("phone") or "").strip()
 
                 where, params = [], []
-                if name_prefix:
-                    where.append("full_name LIKE ?")
-                    params.append(name_prefix + "%")
-                if card_prefix:
-                    where.append("reader_card_number LIKE ?")
-                    params.append(card_prefix + "%")
-                if phone_contains:
-                    where.append("phone LIKE ?")
-                    params.append("%" + phone_contains + "%")
+                if full_name:
+                    where.append("full_name = ?")
+                    params.append(full_name)
+                if card_no:
+                    where.append("reader_card_number = ?")
+                    params.append(card_no)
+                if phone:
+                    where.append("phone = ?")
+                    params.append(phone)
 
                 sql = "SELECT id, reader_card_number, full_name, phone, email FROM readers"
                 if where:
@@ -1024,14 +1051,14 @@ def create_app() -> Flask:
                 results = q_all(sql, tuple(params))
 
             elif entity == "books":
-                title_prefix = (request.args.get("title_prefix") or "").strip()
+                title = (request.args.get("title") or "").strip()
                 author = (request.args.get("author") or "").strip()
                 year = (request.args.get("publish_year") or "").strip()
 
                 where, params = [], []
-                if title_prefix:
-                    where.append("title LIKE ?")
-                    params.append(title_prefix + "%")
+                if title:
+                    where.append("title = ?")
+                    params.append(title)
                 if author:
                     where.append("author = ?")
                     params.append(author)
@@ -1048,7 +1075,7 @@ def create_app() -> Flask:
             elif entity == "loans":
                 status_id = (request.args.get("status_id") or "").strip()
                 librarian_id = (request.args.get("librarian_id") or "").strip()
-                issue_from = (request.args.get("issue_from") or "").strip()
+                issue_date = (request.args.get("issue_date") or "").strip()
 
                 where, params = [], []
                 if status_id:
@@ -1057,9 +1084,9 @@ def create_app() -> Flask:
                 if librarian_id:
                     where.append("l.librarian_id = ?")
                     params.append(int(librarian_id))
-                if issue_from:
-                    where.append("l.issue_date >= ?")
-                    params.append(issue_from)
+                if issue_date:
+                    where.append("l.issue_date = ?")
+                    params.append(issue_date)
 
                 sql = """
                     SELECT
@@ -1084,6 +1111,19 @@ def create_app() -> Flask:
             book_id = (request.args.get("book_id") or "").strip()
             meta["reader_id"] = reader_id
             meta["book_id"] = book_id
+
+            # Синхронизация: выбран читатель → второй список содержит ТОЛЬКО
+            # книги этого читателя (из его выдач). Без читателя — все книги.
+            if reader_id:
+                books = q_all("""
+                    SELECT DISTINCT b.id, b.title
+                    FROM loans l
+                    JOIN books b ON b.id = l.book_id
+                    WHERE l.reader_id = ?
+                    ORDER BY b.title;
+                """, (int(reader_id),))
+            else:
+                books = q_all("SELECT id, title FROM books ORDER BY title;")
 
             if book_id and not reader_id:
                 # выбрана только книга: показываем, каким читателям её выдавали
@@ -1137,12 +1177,28 @@ def create_app() -> Flask:
                 ORDER BY loans_count DESC, lb.full_name ASC;
             """)
 
+        if mode != "two":
+            books = q_all("SELECT id, title FROM books ORDER BY title;")
+
         return render_template(
             "db_search.html",
             mode=mode, meta=meta, results=results,
             readers=readers, librarians=librarians,
             statuses=statuses, authors=authors,
-            books=q_all("SELECT id, title FROM books ORDER BY title;"),
+            reader_cards=q_all(
+                "SELECT reader_card_number FROM readers ORDER BY reader_card_number;"
+            ),
+            phones=q_all(
+                "SELECT DISTINCT phone FROM readers "
+                "WHERE phone IS NOT NULL AND phone != '' ORDER BY phone;"
+            ),
+            years=q_all(
+                "SELECT DISTINCT publish_year FROM books ORDER BY publish_year DESC;"
+            ),
+            loan_dates=q_all(
+                "SELECT DISTINCT issue_date FROM loans ORDER BY issue_date DESC;"
+            ),
+            books=books,
         )
 
     @app.get("/api/options/books-by-reader")
