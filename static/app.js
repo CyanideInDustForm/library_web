@@ -4,6 +4,34 @@ function showToast(text, variant = "info") {
   const container = document.querySelector(".toast-container");
   if (!container) return;
 
+  // Резервный режим: если Bootstrap JS с CDN не загрузился, показываем
+  // уведомление фиксированным блоком в правом верхнем углу (как base.html).
+  if (typeof bootstrap === "undefined") {
+    const colors = {
+      success: "#198754", danger: "#dc3545",
+      warning: "#c07c00", info: "#087990",
+    };
+    const el = document.createElement("div");
+    const index = container.querySelectorAll("[data-fallback-toast]").length;
+    el.dataset.fallbackToast = "1";
+    el.style.cssText = [
+      "position:fixed", "top:" + (12 + index * 72) + "px", "right:12px",
+      "z-index:1100", "display:block", "min-width:280px", "max-width:380px",
+      "padding:12px 40px 12px 16px", "border-radius:6px", "color:#fff",
+      "background:" + (colors[variant] || colors.info),
+      "box-shadow:0 4px 16px rgba(0,0,0,.25)",
+    ].join(";");
+    el.textContent = text;
+    const close = document.createElement("button");
+    close.textContent = "×";
+    close.setAttribute("aria-label", "Закрыть");
+    close.style.cssText = "position:absolute;top:6px;right:10px;background:none;border:none;color:#fff;font-size:20px;line-height:1;cursor:pointer";
+    close.addEventListener("click", () => el.remove());
+    el.appendChild(close);
+    container.appendChild(el);
+    return;
+  }
+
   const el = document.createElement("div");
   el.className = `toast align-items-center text-bg-${variant}`;
   el.setAttribute("role", "alert");
@@ -26,8 +54,12 @@ function showToast(text, variant = "info") {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // server flash toasts
-  document.querySelectorAll(".toast").forEach((el) => new bootstrap.Toast(el).show());
+  // server flash toasts; если Bootstrap не загрузился, base.html уже
+  // оформил их инлайн-стилями — здесь только показываем тосты
+  document.querySelectorAll(".toast").forEach((el) => {
+    if (typeof bootstrap === "undefined") return;
+    new bootstrap.Toast(el).show();
+  });
 
   // bootstrap validation
   document.querySelectorAll(".needs-validation").forEach((form) => {
@@ -39,49 +71,6 @@ document.addEventListener("DOMContentLoaded", () => {
       form.classList.add("was-validated");
     });
   });
-
-  // cascade: reader -> books in loans (полный список книг рендерит сервер)
-  const cascadeReader = document.getElementById("cascadeReader");
-  const cascadeBook = document.getElementById("cascadeBook");
-
-  if (cascadeReader && cascadeBook) {
-    // полный список книг — сохраняем, чтобы вернуть его при сбросе читателя
-    const initialBookOptions = cascadeBook.innerHTML;
-
-    cascadeReader.addEventListener("change", async () => {
-      const rid = cascadeReader.value;
-
-      if (!rid) {
-        cascadeBook.innerHTML = initialBookOptions;
-        return;
-      }
-
-      cascadeBook.innerHTML = `<option value="">(загрузка...)</option>`;
-
-      try {
-        const res = await fetch(`/api/options/books-by-reader?reader_id=${encodeURIComponent(rid)}`);
-        const data = await res.json();
-
-        if (!res.ok || !data.ok) throw new Error(data.error || "Ошибка");
-
-        cascadeBook.innerHTML = `<option value="">(любая)</option>`;
-        if (!data.items.length) {
-          cascadeBook.innerHTML = `<option value="">(нет выдач)</option>`;
-          return;
-        }
-
-        for (const item of data.items) {
-          const opt = document.createElement("option");
-          opt.value = item.value;
-          opt.textContent = item.label;
-          cascadeBook.appendChild(opt);
-        }
-      } catch (err) {
-        cascadeBook.innerHTML = `<option value="">(ошибка)</option>`;
-        showToast(`Ошибка каскада: ${err.message}`, "danger");
-      }
-    });
-  }
 
   // ==================== Сервис «Карта с геолокацией» ====================
   const mapEl = document.getElementById("map");

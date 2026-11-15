@@ -32,80 +32,98 @@
 
         {% if meta.entity == 'readers' %}
           <div class="col-md-3">
-            <label class="form-label">ФИО начинается с</label>
-            <input class="form-control" name="full_name_prefix"
-                   value="{{ request.args.get('full_name_prefix','') }}">
+            <label class="form-label">ФИО</label>
+            <select class="form-select" name="full_name">
+              <option value="">(любой)</option>
+              {% for it in attr_values.readers.full_name %}
+                <option value="{{ it.value }}"
+                {{ 'selected' if request.args.get('full_name') == it.value }}>{{ it.label }}</option>
+              {% endfor %}
+            </select>
           </div>
           <div class="col-md-3">
-            <label class="form-label">Билет начинается с</label>
-            <input class="form-control" name="card_prefix"
-                   value="{{ request.args.get('card_prefix','') }}">
+            <label class="form-label">Читательский билет</label>
+            <select class="form-select" name="card">
+              <option value="">(любой)</option>
+              {% for it in attr_values.readers.reader_card_number %}
+                <option value="{{ it.value }}"
+                {{ 'selected' if request.args.get('card') == it.value }}>{{ it.label }}</option>
+              {% endfor %}
+            </select>
           </div>
           <div class="col-md-3">
-            <label class="form-label">Телефон содержит</label>
-            <input class="form-control" name="phone_contains"
-                   value="{{ request.args.get('phone_contains','') }}">
+            <label class="form-label">Телефон</label>
+            <select class="form-select" name="phone">
+              <option value="">(любой)</option>
+              {% for it in attr_values.readers.phone %}
+                <option value="{{ it.value }}"
+                {{ 'selected' if request.args.get('phone') == it.value }}>{{ it.label }}</option>
+              {% endfor %}
+            </select>
           </div>
 
         {% elif meta.entity == 'books' %}
           <div class="col-md-3">
-            <label class="form-label">Название начинается с</label>
-            <input class="form-control" name="title_prefix"
-                   value="{{ request.args.get('title_prefix','') }}">
+            <label class="form-label">Название</label>
+            <select class="form-select" name="title">
+              <option value="">(любое)</option>
+              {% for it in attr_values.books.title %}
+                <option value="{{ it.value }}"
+                {{ 'selected' if request.args.get('title') == it.value }}>{{ it.label }}</option>
+              {% endfor %}
+            </select>
           </div>
           <div class="col-md-3">
             <label class="form-label">Автор</label>
             <select class="form-select" name="author">
               <option value="">(любой)</option>
-              {% for a in authors %}
-                <option value="{{ a.author }}"
-                {% if request.args.get('author') == a.author %}selected{% endif %}>
-                  {{ a.author }}
-                </option>
+              {% for it in attr_values.books.author %}
+                <option value="{{ it.value }}"
+                {{ 'selected' if request.args.get('author') == it.value }}>{{ it.label }}</option>
               {% endfor %}
             </select>
           </div>
           <div class="col-md-3">
             <label class="form-label">Год издания</label>
-            <input class="form-control" type="number" name="publish_year"
-                   min="1800" max="2026"
-                   value="{{ request.args.get('publish_year','') }}">
+            <select class="form-select" name="publish_year">
+              <option value="">(любой)</option>
+              {% for it in attr_values.books.publish_year %}
+                <option value="{{ it.value }}"
+                {{ 'selected' if request.args.get('publish_year') == it.value }}>{{ it.label }}</option>
+              {% endfor %}
+            </select>
           </div>
 
         {% elif meta.entity == 'loans' %}
           <div class="col-md-3">
             <label class="form-label">Статус</label>
-            <div class="input-group">
-              <select class="form-select" name="status_id">
-                <option value="">(любой)</option>
-                {% for s in statuses %}
-                  <option value="{{ s.id }}"
-                  {% if request.args.get('status_id') == s.id|string %}selected{% endif %}>
-                    {{ s.title }}
-                  </option>
-                {% endfor %}
-              </select>
-            </div>
+            <select class="form-select" name="status_id">
+              <option value="">(любой)</option>
+              {% for it in attr_values.loans.status %}
+                <option value="{{ it.value }}"
+                {{ 'selected' if request.args.get('status_id') == it.value }}>{{ it.label }}</option>
+              {% endfor %}
+            </select>
           </div>
           <div class="col-md-3">
             <label class="form-label">Библиотекарь</label>
-            <div class="input-group">
-              <select class="form-select" name="librarian_id">
-                <option value="">(любой)</option>
-                {% for lb in librarians %}
-                  <option value="{{ lb.id }}"
-                  {% if request.args.get('librarian_id') == lb.id|string %}selected{% endif %}>
-                    {{ lb.full_name }}
-                  </option>
-                {% endfor %}
-              </select>
-            </div>
+            <select class="form-select" name="librarian_id">
+              <option value="">(любой)</option>
+              {% for it in attr_values.loans.librarian %}
+                <option value="{{ it.value }}"
+                {{ 'selected' if request.args.get('librarian_id') == it.value }}>{{ it.label }}</option>
+              {% endfor %}
+            </select>
           </div>
           <div class="col-md-3">
-            <label class="form-label">Выдача начиная с</label>
-            <input class="form-control" type="date" name="issue_from"
-                   min="2026-01-01"
-                   value="{{ request.args.get('issue_from','') }}">
+            <label class="form-label">Дата выдачи</label>
+            <select class="form-select" name="issue_date">
+              <option value="">(любая)</option>
+              {% for it in attr_values.loans.issue_date %}
+                <option value="{{ it.value }}"
+                {{ 'selected' if request.args.get('issue_date') == it.value }}>{{ it.label }}</option>
+              {% endfor %}
+            </select>
           </div>
         {% endif %}
 
@@ -113,6 +131,11 @@
           <button class="btn btn-accent" type="submit">Найти</button>
         </div>
       </form>
+      <div class="form-text">
+        Все критерии – выпадающие списки со значениями из базы данных:
+        можно выбрать один или несколько (условие «и»), пустые критерии не учитываются –
+        результат гарантирован.
+      </div>
     </div>
   </div>
 
@@ -126,7 +149,7 @@
         <div class="col-md-6">
           <label class="form-label">Читатель</label>
           <div class="input-group">
-            <select class="form-select" name="reader_id" id="cascadeReader">
+            <select class="form-select" name="reader_id" onchange="this.form.submit()">
               <option value="">(выберите)</option>
               {% for r in readers %}
                 <option value="{{ r.id }}"
@@ -141,14 +164,25 @@
         <div class="col-md-6">
           <label class="form-label">Книга</label>
           <div class="input-group">
-            <select class="form-select" name="book_id" id="cascadeBook">
-              <option value="">(любая)</option>
-              {% for b in books %}
-                <option value="{{ b.id }}"
-                {% if request.args.get('book_id') == b.id|string %}selected{% endif %}>
-                  {{ b.title }}
-                </option>
-              {% endfor %}
+            <select class="form-select" name="book_id" onchange="this.form.submit()">
+              {% if request.args.get('reader_id') %}
+                {# список книг синхронизирован с выбранным читателем #}
+                <option value="">(любая из его выдач)</option>
+                {% for b in two_books %}
+                  <option value="{{ b.id }}"
+                  {% if request.args.get('book_id') == b.id|string %}selected{% endif %}>
+                    {{ b.label }}
+                  </option>
+                {% endfor %}
+              {% else %}
+                <option value="">(выберите произведение)</option>
+                {% for b in books %}
+                  <option value="{{ b.id }}"
+                  {% if request.args.get('book_id') == b.id|string %}selected{% endif %}>
+                    {{ b.title }} — {{ b.author }} ({{ b.publish_year }})
+                  </option>
+                {% endfor %}
+              {% endif %}
             </select>
           </div>
         </div>
@@ -158,9 +192,8 @@
         </div>
       </form>
       <div class="form-text">
-        Выберите книгу — и увидите таблицу выдач: каким читателям её выдавали.
-        При выборе читателя список книг сузится до его выдач (API-каскад);
-        читатель + книга — выдачи конкретного читателя по конкретной книге.
+        Синхронизация без кнопки «Найти»: выберите книгу – таблица выдач появится автоматически;
+        при выборе читателя список книг сам сузится до его выдач.
       </div>
     </div>
   </div>

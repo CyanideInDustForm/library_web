@@ -23,7 +23,7 @@
     Общие новости
   </a>
   <a class="btn {{ 'btn-accent' if view == 'site' else 'btn-outline-accent' }}"
-     href="{{ url_for('merged_news', view='site', q=query) }}">
+     href="{{ url_for('merged_news', view='site', q=query, feed=feed_url) }}">
     Новости сайта
   </a>
   <a class="btn {{ 'btn-accent' if view == 'rss' else 'btn-outline-accent' }}"
@@ -104,6 +104,10 @@
     {% endif %}
   </div>
 </div>
+
+{% if ext_ok %}
+  <div class="alert alert-success">{{ ext_ok }}</div>
+{% endif %}
 
 {% if ext_error %}
   <div class="alert alert-warning">{{ ext_error }}</div>

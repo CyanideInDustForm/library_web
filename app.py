@@ -786,9 +786,11 @@ def create_app() -> Flask:
         if view not in ("all", "site", "rss"):
             view = "all"
 
-        feed_url = (
-            request.args.get("feed") or DEFAULT_EXTERNAL_FEED
-        ).strip()
+        # адрес ленты запоминается в сессии (только если лента отвечает):
+        # раз выбранная лента не сбрасывается при переключении режимов просмотра
+        feed_arg = (request.args.get("feed") or "").strip()
+        feed_url = feed_arg or session.get("rss_feed") or DEFAULT_EXTERNAL_FEED
+
         query = (request.args.get("q") or "").strip()
         needle = query.casefold()
 
@@ -810,6 +812,7 @@ def create_app() -> Flask:
 
         ext_items = []
         ext_title = ""
+        ext_ok = None
         ext_error = None
 
         if view in ("all", "rss"):
@@ -818,10 +821,21 @@ def create_app() -> Flask:
                 or fetch_bytes_fallback(feed_url, timeout=8)
             )
 
+            # постоянное сообщение о состоянии ленты (зелёный/жёлтый блок);
+            # тост показываем только когда ленту только что сменили,
+            # в сессию сохраняем ленту, которая реально открылась
             if raw:
                 try:
                     parsed = parse_external_feed(raw)
+                    # пустая, но валидная лента (некоторые сайты так отвечают
+                    # на неверный адрес с кодом 200) — тоже ошибка
+                    if not parsed["items"]:
+                        raise ValueError("пустая лента")
                     ext_title = parsed["title"]
+                    ext_ok = f"Внешняя лента {feed_url} успешно загружена."
+                    if feed_arg:
+                        session["rss_feed"] = feed_arg
+                        flash(f"RSS-лента «{ext_title}» подключена.", "success")
                     ext_items = [
                         dict(item, source=ext_title, own=False)
                         for item in parsed["items"]
@@ -830,11 +844,15 @@ def create_app() -> Flask:
                     ext_error = (
                         "Лента загрузилась, но не распозналась как RSS/Atom."
                     )
+                    if feed_arg:
+                        flash(ext_error, "warning")
             else:
                 ext_error = (
                     "Внешняя лента сейчас недоступна. "
                     "Новости библиотеки при этом продолжают работать."
                 )
+                if feed_arg:
+                    flash(ext_error, "warning")
 
         # Поиск по новостям сайта и внешней RSS.
         if needle:
@@ -859,6 +877,7 @@ def create_app() -> Flask:
             view=view,
             feed_url=feed_url,
             ext_title=ext_title,
+            ext_ok=ext_ok,
             ext_error=ext_error,
             own_items=own_items,
             ext_items=ext_items,
@@ -989,10 +1008,40 @@ def create_app() -> Flask:
     def db_search():
         mode = request.args.get("mode", "one")
 
-        readers = q_all("SELECT id, full_name FROM readers ORDER BY full_name;")
+        readers = q_all(
+            "SELECT id, reader_card_number, full_name FROM readers ORDER BY full_name;"
+        )
         librarians = q_all("SELECT id, full_name FROM librarians ORDER BY full_name;")
         statuses = q_all("SELECT id, title FROM statuses ORDER BY id;")
         authors = q_all("SELECT DISTINCT author FROM books ORDER BY author;")
+
+        # значения для выпадающих списков критериев поиска –
+        # подбираются из базы, поэтому результат всегда будет найден
+        attr_values: Dict[str, Dict[str, List[Dict[str, Any]]]] = {
+            "readers": {
+                col: [{"value": str(r["v"]), "label": str(r["v"])}
+                      for r in q_all(
+                          f"SELECT DISTINCT {col} AS v FROM readers "
+                          f"WHERE {col} IS NOT NULL ORDER BY {col};")]
+                for col in ("full_name", "reader_card_number", "phone")
+            },
+            "books": {
+                col: [{"value": str(r["v"]), "label": str(r["v"])}
+                      for r in q_all(
+                          f"SELECT DISTINCT {col} AS v FROM books "
+                          f"WHERE {col} IS NOT NULL ORDER BY {col};")]
+                for col in ("title", "author", "publish_year")
+            },
+            "loans": {
+                "status": [{"value": s["id"], "label": s["title"]} for s in statuses],
+                "librarian": [{"value": lb["id"], "label": lb["full_name"]}
+                             for lb in librarians],
+                "issue_date": [{"value": d["issue_date"], "label": d["issue_date"]}
+                               for d in q_all(
+                                   "SELECT DISTINCT issue_date FROM loans "
+                                   "ORDER BY issue_date DESC;")],
+            },
+        }
 
         meta: Dict[str, Any] = {"mode": mode}
         results: List[Dict[str, Any]] = []
@@ -1001,21 +1050,24 @@ def create_app() -> Flask:
             entity = request.args.get("entity", "readers")
             meta["entity"] = entity
 
+            # все критерии – выпадающие списки со значениями из базы;
+            # выбранные критерии объединяются условием AND, пустые пропускаются,
+            # поэтому результат гарантирован
             if entity == "readers":
-                name_prefix = (request.args.get("full_name_prefix") or "").strip()
-                card_prefix = (request.args.get("card_prefix") or "").strip()
-                phone_contains = (request.args.get("phone_contains") or "").strip()
+                full_name = (request.args.get("full_name") or "").strip()
+                card = (request.args.get("card") or "").strip()
+                phone = (request.args.get("phone") or "").strip()
 
                 where, params = [], []
-                if name_prefix:
-                    where.append("full_name LIKE ?")
-                    params.append(name_prefix + "%")
-                if card_prefix:
-                    where.append("reader_card_number LIKE ?")
-                    params.append(card_prefix + "%")
-                if phone_contains:
-                    where.append("phone LIKE ?")
-                    params.append("%" + phone_contains + "%")
+                if full_name:
+                    where.append("full_name = ?")
+                    params.append(full_name)
+                if card:
+                    where.append("reader_card_number = ?")
+                    params.append(card)
+                if phone:
+                    where.append("phone = ?")
+                    params.append(phone)
 
                 sql = "SELECT id, reader_card_number, full_name, phone, email FROM readers"
                 if where:
@@ -1024,14 +1076,14 @@ def create_app() -> Flask:
                 results = q_all(sql, tuple(params))
 
             elif entity == "books":
-                title_prefix = (request.args.get("title_prefix") or "").strip()
+                title = (request.args.get("title") or "").strip()
                 author = (request.args.get("author") or "").strip()
                 year = (request.args.get("publish_year") or "").strip()
 
                 where, params = [], []
-                if title_prefix:
-                    where.append("title LIKE ?")
-                    params.append(title_prefix + "%")
+                if title:
+                    where.append("title = ?")
+                    params.append(title)
                 if author:
                     where.append("author = ?")
                     params.append(author)
@@ -1048,7 +1100,7 @@ def create_app() -> Flask:
             elif entity == "loans":
                 status_id = (request.args.get("status_id") or "").strip()
                 librarian_id = (request.args.get("librarian_id") or "").strip()
-                issue_from = (request.args.get("issue_from") or "").strip()
+                issue_date = (request.args.get("issue_date") or "").strip()
 
                 where, params = [], []
                 if status_id:
@@ -1057,9 +1109,9 @@ def create_app() -> Flask:
                 if librarian_id:
                     where.append("l.librarian_id = ?")
                     params.append(int(librarian_id))
-                if issue_from:
-                    where.append("l.issue_date >= ?")
-                    params.append(issue_from)
+                if issue_date:
+                    where.append("l.issue_date = ?")
+                    params.append(issue_date)
 
                 sql = """
                     SELECT
@@ -1084,6 +1136,18 @@ def create_app() -> Flask:
             book_id = (request.args.get("book_id") or "").strip()
             meta["reader_id"] = reader_id
             meta["book_id"] = book_id
+
+            # книги выбранного читателя — список «Книга» синхронизируется с читателем
+            two_books: List[Dict[str, Any]] = []
+            if reader_id:
+                two_books = q_all("""
+                    SELECT DISTINCT b.id,
+                           b.title || ' — ' || b.author AS label
+                    FROM loans l
+                    JOIN books b ON b.id = l.book_id
+                    WHERE l.reader_id = ?
+                    ORDER BY b.title;
+                """, (int(reader_id),))
 
             if book_id and not reader_id:
                 # выбрана только книга: показываем, каким читателям её выдавали
@@ -1142,7 +1206,9 @@ def create_app() -> Flask:
             mode=mode, meta=meta, results=results,
             readers=readers, librarians=librarians,
             statuses=statuses, authors=authors,
-            books=q_all("SELECT id, title FROM books ORDER BY title;"),
+            books=q_all("SELECT id, title, author, publish_year FROM books ORDER BY title;"),
+            two_books=two_books if mode == "two" else [],
+            attr_values=attr_values,
         )
 
     @app.get("/api/options/books-by-reader")
