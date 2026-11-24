@@ -339,6 +339,47 @@
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // Если CDN Bootstrap недоступен, серверные и локальные уведомления
+  // всё равно отображаются и закрываются без внешних библиотек.
+  window.libraryToastFallback = function (el, variant) {
+    const container = el.parentElement;
+    const previous = container
+      ? Array.from(container.querySelectorAll("[data-fallback-toast]"))
+      : [];
+    const top = previous.reduce(
+      (offset, item) => offset + item.getBoundingClientRect().height + 12,
+      12
+    );
+    const colors = {
+      success: "#198754", danger: "#dc3545",
+      warning: "#8a5a00", info: "#087990"
+    };
+    el.dataset.fallbackToast = "1";
+    el.style.cssText = [
+      "position:fixed", "top:" + top + "px", "right:12px",
+      "z-index:1100", "display:block", "box-sizing:border-box",
+      "width:calc(100vw - 24px)", "max-width:380px",
+      "padding:12px 40px 12px 16px", "border-radius:6px", "color:#fff",
+      "background:" + (colors[variant] || colors.info),
+      "box-shadow:0 4px 16px rgba(0,0,0,.25)"
+    ].join(";");
+    const close = el.querySelector(".btn-close");
+    if (close) {
+      close.textContent = "×";
+      close.setAttribute("aria-label", "Закрыть");
+      close.style.cssText = "position:absolute;top:6px;right:10px;background:none;border:0;color:#fff;font-size:22px;line-height:1;cursor:pointer";
+      close.addEventListener("click", () => el.remove());
+    }
+  };
+
+  if (typeof bootstrap === "undefined") {
+    document.querySelectorAll(".toast").forEach((el) => {
+      const variant = (el.className.match(/text-bg-(\w+)/) || [, "info"])[1];
+      window.libraryToastFallback(el, variant);
+    });
+  }
+</script>
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="{{ url_for('static', filename='app.js') }}"></script>
 

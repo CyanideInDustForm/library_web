@@ -18,7 +18,7 @@
       <b>📡 Новости библиотеки (RSS 2.0)</b>
       <div class="text-muted small">Канонический формат RSS — лента открывается в любом RSS-ридере.</div>
     </div>
-    <a class="btn btn-accent" href="{{ url_for('rss_feed') }}" target="_blank">Открыть /rss.xml</a>
+    <a class="btn btn-accent" href="{{ url_for('rss_feed') }}">Открыть /rss.xml</a>
   </div>
 </div>
 
@@ -30,9 +30,9 @@
       <div class="text-muted small">Новости из базы выгружаются как XML, CSV (разделитель «;», первая строка —
         список полей) и текстовый tagged-формат (записи в тегах <code>&lt;news&gt;</code>).</div>
     </div>
-    <a class="btn btn-outline-accent btn-sm" href="{{ url_for('export_news_xml') }}" target="_blank">news.xml</a>
-    <a class="btn btn-outline-accent btn-sm" href="{{ url_for('export_news_csv') }}" target="_blank">news.csv</a>
-    <a class="btn btn-outline-accent btn-sm" href="{{ url_for('export_news_tagged') }}" target="_blank">news-tagged.txt</a>
+    <a class="btn btn-outline-accent btn-sm" href="{{ url_for('export_news_xml') }}" download="news.xml">news.xml</a>
+    <a class="btn btn-outline-accent btn-sm" href="{{ url_for('export_news_csv') }}" download="news.csv">news.csv</a>
+    <a class="btn btn-outline-accent btn-sm" href="{{ url_for('export_news_tagged') }}" download="news-tagged.txt">news-tagged.txt</a>
   </div>
 </div>
 
@@ -45,7 +45,7 @@
         JavaScript'ом и показывает таблицей. Есть поиск по символам и сортировка по всем колонкам.</div>
     </div>
     <a class="btn btn-accent" href="{{ url_for('lab2_xml') }}">Открыть JS-таблицу</a>
-    <a class="btn btn-outline-accent" href="{{ url_for('static', filename='xml/handmade.xml') }}" target="_blank">Сам XML-файл</a>
+    <a class="btn btn-outline-accent" href="{{ url_for('static', filename='xml/handmade.xml') }}">Сам XML-файл</a>
   </div>
 </div>
 
@@ -59,10 +59,10 @@
           <p class="card-text">{{ f.desc }}</p>
           <p class="small text-muted mb-2">Структура: <code>{{ f.tags }}</code></p>
           <div class="mt-auto d-flex gap-2 flex-wrap">
-            <a class="btn btn-accent btn-sm" href="{{ f.url }}" target="_blank">Открыть XML</a>
-            <a class="btn btn-outline-accent btn-sm" href="{{ f.xsd }}" target="_blank">XSD-схема</a>
+            <a class="btn btn-accent btn-sm" href="{{ f.url }}">Открыть XML</a>
+            <a class="btn btn-outline-accent btn-sm" href="{{ f.xsd }}">XSD-схема</a>
             {% for v in f.variants|default([]) %}
-              <a class="btn btn-outline-secondary btn-sm" href="{{ v.url }}" target="_blank">{{ v.label }}</a>
+              <a class="btn btn-outline-secondary btn-sm" href="{{ v.url }}">{{ v.label }}</a>
             {% endfor %}
           </div>
         </div>
@@ -92,14 +92,14 @@
 
 <h2 class="section-title">Файлы оформления</h2>
 <ul>
-  <li><a href="/static/xml/table.xsl" target="_blank">table.xsl</a> — универсальная таблица (новости, выдачи, отзывы)</li>
-  <li><a href="/static/xml/books.xsl" target="_blank">books.xsl</a> и <a href="/static/xml/books-year.xsl" target="_blank">books-year.xsl</a> — каталог с сортировкой</li>
-  <li><a href="/static/xml/events.xsl" target="_blank">events.xsl</a> — афиша с выделением дат</li>
-  <li><a href="/static/xml/news.xsd" target="_blank">news.xsd</a> ·
-      <a href="/static/xml/books.xsd" target="_blank">books.xsd</a> ·
-      <a href="/static/xml/loans.xsd" target="_blank">loans.xsd</a> ·
-      <a href="/static/xml/events.xsd" target="_blank">events.xsd</a> ·
-      <a href="/static/xml/reviews.xsd" target="_blank">reviews.xsd</a></li>
+  <li><a href="/static/xml/table.xsl">table.xsl</a> — универсальная таблица (новости, выдачи, отзывы)</li>
+  <li><a href="/static/xml/books.xsl">books.xsl</a> и <a href="/static/xml/books-year.xsl">books-year.xsl</a> — каталог с сортировкой</li>
+  <li><a href="/static/xml/events.xsl">events.xsl</a> — афиша с выделением дат</li>
+  <li><a href="/static/xml/news.xsd">news.xsd</a> ·
+      <a href="/static/xml/books.xsd">books.xsd</a> ·
+      <a href="/static/xml/loans.xsd">loans.xsd</a> ·
+      <a href="/static/xml/events.xsd">events.xsd</a> ·
+      <a href="/static/xml/reviews.xsd">reviews.xsd</a></li>
 </ul>
 
 {% endblock %}

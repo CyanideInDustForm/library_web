@@ -182,7 +182,8 @@
         <div class="col-md-6">
           <label class="form-label">Книга</label>
           <div class="input-group">
-            <select class="form-select" name="book_id" id="cascadeBook">
+            <select class="form-select" name="book_id" id="cascadeBook"
+                    onchange="this.form.submit()">
               <option value="">{% if request.args.get('reader_id') %}(книги выбранного читателя){% else %}(любая){% endif %}</option>
               {% for b in books %}
                 <option value="{{ b.id }}"
@@ -200,9 +201,9 @@
       </form>
       <div class="form-text">
         Синхронизация списков: как только выбран читатель, список книг автоматически
-        обновляется и показывает только книги из его выдач. Затем можно выбрать книгу —
-        увидите выдачи конкретного читателя по конкретной книге. Без читателя
-        список книг содержит весь фонд, и можно искать по книге отдельно.
+        обновляется и показывает только книги из его выдач. При выборе книги поиск
+        выполняется автоматически. Если прежняя книга не подходит новому читателю,
+        она сбрасывается. Без читателя список содержит весь фонд.
       </div>
     </div>
   </div>

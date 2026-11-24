@@ -105,23 +105,27 @@
   </div>
 </div>
 
+{% if ext_ok %}
+  <div class="alert alert-success" role="status">{{ ext_ok }}</div>
+{% endif %}
+
 {% if ext_error %}
-  <div class="alert alert-warning">{{ ext_error }}</div>
+  <div class="alert alert-warning" role="alert">{{ ext_error }}</div>
 {% endif %}
 
 {% if view in ("all", "site") %}
 <div class="mb-3 d-flex gap-2">
   <a class="btn btn-outline-accent btn-sm"
      href="{{ url_for('export_news_xml') }}"
-     target="_blank">XML</a>
+     download="news.xml">XML</a>
 
   <a class="btn btn-outline-accent btn-sm"
      href="{{ url_for('export_news_csv') }}"
-     target="_blank">CSV</a>
+     download="news.csv">CSV</a>
 
   <a class="btn btn-outline-accent btn-sm"
      href="{{ url_for('export_news_tagged') }}"
-     target="_blank">TXT</a>
+     download="news-tagged.txt">TXT</a>
 </div>
 {% endif %}
 
@@ -157,7 +161,6 @@
             {{ item.title }}
           {% elif item.link %}
             <a href="{{ item.link }}"
-               target="_blank"
                rel="noopener noreferrer">
               {{ item.title }}
             </a>
@@ -217,7 +220,6 @@
         <h3 class="h6 card-title">
           {% if item.link %}
             <a href="{{ item.link }}"
-               target="_blank"
                rel="noopener noreferrer">
               {{ item.title }}
             </a>

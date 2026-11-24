@@ -397,6 +397,87 @@ def create_app() -> Flask:
         if status_id == 2 and ret is None:
             raise ValueError("Для статуса 'возвращено' return_date обязателен.")
 
+    # --------------------- Запись без дублей ---------------------
+    def loan_duplicate_exists(db: sqlite3.Connection, values: Tuple[Any, ...],
+                              exclude_id: Optional[int] = None) -> bool:
+        """Сравнение через IS корректно учитывает NULL в необязательных датах."""
+        sql = """
+            SELECT 1 FROM loans
+            WHERE reader_id = ? AND book_id = ? AND librarian_id = ?
+              AND status_id = ? AND issue_date = ?
+              AND due_date IS ? AND return_date IS ?
+        """
+        params = values
+        if exclude_id is not None:
+            sql += " AND id <> ?"
+            params += (exclude_id,)
+        sql += " LIMIT 1;"
+        return db.execute(sql, params).fetchone() is not None
+
+    def insert_loan(values: Tuple[Any, ...]) -> bool:
+        """Возвращает False, если точно такая выдача уже существует."""
+        db = get_db()
+        try:
+            # Блокировка на запись не даёт двум одновременным запросам
+            # успешно пройти проверку и вставить одинаковые записи.
+            db.execute("BEGIN IMMEDIATE;")
+            if loan_duplicate_exists(db, values):
+                db.rollback()
+                return False
+            db.execute("""
+                INSERT INTO loans(
+                  reader_id, book_id, librarian_id, status_id,
+                  issue_date, due_date, return_date
+                ) VALUES (?, ?, ?, ?, ?, ?, ?);
+            """, values)
+            db.commit()
+            return True
+        except Exception:
+            db.rollback()
+            raise
+
+    def update_loan(loan_id: int, values: Tuple[Any, ...]) -> bool:
+        """Возвращает False, если изменение создало бы дубль другой выдачи."""
+        db = get_db()
+        try:
+            db.execute("BEGIN IMMEDIATE;")
+            if loan_duplicate_exists(db, values, exclude_id=loan_id):
+                db.rollback()
+                return False
+            db.execute("""
+                UPDATE loans
+                SET reader_id = ?, book_id = ?, librarian_id = ?, status_id = ?,
+                    issue_date = ?, due_date = ?, return_date = ?
+                WHERE id = ?;
+            """, values + (loan_id,))
+            db.commit()
+            return True
+        except Exception:
+            db.rollback()
+            raise
+
+    def insert_news(title: str, body: str, published: str) -> bool:
+        """Не публикует повторно новость с тем же заголовком и текстом."""
+        db = get_db()
+        try:
+            db.execute("BEGIN IMMEDIATE;")
+            duplicate = db.execute(
+                "SELECT 1 FROM news WHERE title = ? AND body = ? LIMIT 1;",
+                (title, body),
+            ).fetchone()
+            if duplicate:
+                db.rollback()
+                return False
+            db.execute(
+                "INSERT INTO news(title, body, published_at) VALUES (?, ?, ?);",
+                (title, body, published),
+            )
+            db.commit()
+            return True
+        except Exception:
+            db.rollback()
+            raise
+
     # =========================================================
     #   СТАТИЧЕСКИЕ СТРАНИЦЫ САЙТА
     # =========================================================
@@ -450,11 +531,13 @@ def create_app() -> Flask:
             if len(body) < 10:
                 raise ValueError("Текст новости — минимум 10 символов.")
             published = datetime.now().strftime("%Y-%m-%d %H:%M")
-            exec1(
-                "INSERT INTO news(title, body, published_at) VALUES (?, ?, ?);",
-                (title, body, published),
-            )
-            flash("Новость записана в базу данных и опубликована.", "success")
+            if insert_news(title, body, published):
+                flash("Новость записана в базу данных и опубликована.", "success")
+            else:
+                flash(
+                    "Такая новость уже опубликована. Повторная запись не создана.",
+                    "warning",
+                )
         except ValueError as e:
             flash(str(e), "danger")
         except Exception:
@@ -786,17 +869,13 @@ def create_app() -> Flask:
         if view not in ("all", "site", "rss"):
             view = "all"
 
-        # Лента запоминается в сессии. Сообщения показываем только когда
-        # адрес реально изменился, а не при каждом переходе между вкладками.
+        # В сессии храним только последнюю успешно загруженную ленту.
+        # Ошибочный адрес не заменяет предыдущий рабочий, а уведомление
+        # показывается один раз — при попытке подключить новый адрес.
         feed_arg = (request.args.get("feed") or "").strip()
         prev_feed = session.get("feed_url")
-        if feed_arg and feed_arg != prev_feed:
-            session["feed_url"] = feed_arg
-            flash(f"Запрос на подключение ленты: {feed_arg}", "info")
-        elif feed_arg:
-            session["feed_url"] = feed_arg
-        feed_url = session.get("feed_url") or DEFAULT_EXTERNAL_FEED
         feed_changed = bool(feed_arg and feed_arg != prev_feed)
+        feed_url = feed_arg or prev_feed or DEFAULT_EXTERNAL_FEED
         query = (request.args.get("q") or "").strip()
         needle = query.casefold()
 
@@ -818,6 +897,7 @@ def create_app() -> Flask:
 
         ext_items = []
         ext_title = ""
+        ext_ok = None
         ext_error = None
 
         if view in ("all", "rss"):
@@ -829,37 +909,50 @@ def create_app() -> Flask:
             if raw:
                 try:
                     parsed = parse_external_feed(raw)
+                    if not parsed["items"]:
+                        raise ValueError("Лента не содержит записей.")
                     ext_title = parsed["title"]
                     ext_items = [
                         dict(item, source=ext_title, own=False)
                         for item in parsed["items"]
                     ]
+                    ext_ok = (
+                        f"RSS-лента «{ext_title}» успешно загружена: "
+                        f"записей — {len(ext_items)}."
+                    )
+                    if feed_arg:
+                        session["feed_url"] = feed_arg
                     if feed_changed:
                         flash(
-                            f"Подключена RSS-лента «{ext_title}» "
-                            f"({feed_url}): загружено записей: {len(ext_items)}.",
+                            f"RSS-лента «{ext_title}» подключена: "
+                            f"загружено записей — {len(ext_items)}.",
                             "success",
                         )
                 except Exception:
                     ext_error = (
-                        "Лента загрузилась, но не распозналась как RSS/Atom."
+                        f"Не удалось подключить {feed_url}: ответ не является "
+                        "непустой RSS/Atom-лентой. Предыдущий рабочий адрес сохранён."
                     )
                     if feed_changed:
                         flash(
-                            "Подключить ленту не удалось: формат не распознан.",
+                            "RSS-лента не подключена: проверьте адрес и формат. "
+                            "Предыдущий рабочий адрес сохранён.",
                             "danger",
                         )
+                    feed_url = prev_feed or DEFAULT_EXTERNAL_FEED
             else:
                 ext_error = (
-                    "Внешняя лента сейчас недоступна. "
-                    "Новости библиотеки при этом продолжают работать."
+                    f"Не удалось подключить {feed_url}: адрес не отвечает. "
+                    "Новости библиотеки продолжают работать; "
+                    "предыдущий рабочий адрес сохранён."
                 )
                 if feed_changed:
                     flash(
-                        "Подключить ленту не удалось: адрес не отвечает. "
-                        "Показаны новости сайта.",
+                        "RSS-лента не подключена: адрес не отвечает. "
+                        "Предыдущий рабочий адрес сохранён.",
                         "danger",
                     )
+                feed_url = prev_feed or DEFAULT_EXTERNAL_FEED
 
         # Поиск по новостям сайта и внешней RSS.
         if needle:
@@ -884,6 +977,7 @@ def create_app() -> Flask:
             view=view,
             feed_url=feed_url,
             ext_title=ext_title,
+            ext_ok=ext_ok,
             ext_error=ext_error,
             own_items=own_items,
             ext_items=ext_items,
@@ -992,15 +1086,15 @@ def create_app() -> Flask:
 
             validate_loan(issue_date, due_date, status_id, return_date)
 
-            exec1("""
-                INSERT INTO loans(
-                  reader_id, book_id, librarian_id, status_id,
-                  issue_date, due_date, return_date
-                ) VALUES (?, ?, ?, ?, ?, ?, ?);
-            """, (reader_id, book_id, librarian_id, status_id,
-                  issue_date, due_date, return_date))
-
-            flash("Выдача создана.", "success")
+            values = (reader_id, book_id, librarian_id, status_id,
+                      issue_date, due_date, return_date)
+            if insert_loan(values):
+                flash("Выдача успешно сохранена в базе данных.", "success")
+            else:
+                flash(
+                    "Такая выдача уже существует. Повторная запись не создана.",
+                    "warning",
+                )
         except ValueError as e:
             flash(str(e), "danger")
         except sqlite3.IntegrityError as e:
@@ -1009,6 +1103,14 @@ def create_app() -> Flask:
             flash("Не удалось создать выдачу (ошибка формы).", "danger")
 
         return redirect(url_for("db_app"))
+
+    @app.get("/search")
+    def search():
+        """Старый адрес поиска всегда открывает актуальную реализацию."""
+        target = url_for("db_search")
+        if request.query_string:
+            target += "?" + request.query_string.decode("utf-8")
+        return redirect(target)
 
     @app.get("/db/search")
     def db_search():
@@ -1124,6 +1226,12 @@ def create_app() -> Flask:
                 """, (int(reader_id),))
             else:
                 books = q_all("SELECT id, title FROM books ORDER BY title;")
+
+            # После смены читателя старый book_id может относиться к другому
+            # читателю. Сбрасываем его, чтобы не получать ложный пустой результат.
+            if book_id and not any(str(b["id"]) == book_id for b in books):
+                book_id = ""
+                meta["book_id"] = ""
 
             if book_id and not reader_id:
                 # выбрана только книга: показываем, каким читателям её выдавали
@@ -1309,11 +1417,15 @@ def create_app() -> Flask:
 
                 validate_loan(issue_date, due_date, status_id, return_date)
 
-                exec1("""
-                    INSERT INTO loans(reader_id, book_id, librarian_id, status_id, issue_date, due_date, return_date)
-                    VALUES (?, ?, ?, ?, ?, ?, ?);
-                """, (reader_id, book_id, librarian_id, status_id, issue_date, due_date, return_date))
-                flash("Выдача добавлена.", "success")
+                values = (reader_id, book_id, librarian_id, status_id,
+                          issue_date, due_date, return_date)
+                if insert_loan(values):
+                    flash("Выдача успешно сохранена в базе данных.", "success")
+                else:
+                    flash(
+                        "Такая выдача уже существует. Повторная запись не создана.",
+                        "warning",
+                    )
 
             elif table == "statuses":
                 flash("Справочник статусов фиксирован и не редактируется.", "warning")
@@ -1374,9 +1486,18 @@ def create_app() -> Flask:
                 if table == "books":
                     values = values[:3] + (int(values[3]),) + values[4:]
 
-            sets = ", ".join(f"{c} = ?" for c in columns)
-            exec1(f"UPDATE {table} SET {sets} WHERE id = ?;", values + (id,))
-            flash("Запись обновлена.", "success")
+            if table == "loans":
+                if update_loan(id, values):
+                    flash("Выдача обновлена.", "success")
+                else:
+                    flash(
+                        "Изменение отклонено: точно такая выдача уже существует.",
+                        "warning",
+                    )
+            else:
+                sets = ", ".join(f"{c} = ?" for c in columns)
+                exec1(f"UPDATE {table} SET {sets} WHERE id = ?;", values + (id,))
+                flash("Запись обновлена.", "success")
         except ValueError as e:
             flash(str(e), "danger")
         except sqlite3.IntegrityError as e:

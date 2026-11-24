@@ -9,34 +9,59 @@ function showToast(text, variant = "info") {
   el.setAttribute("role", "alert");
   el.setAttribute("aria-live", "assertive");
   el.setAttribute("aria-atomic", "true");
-  el.dataset.bsDelay = "5000";
 
-  el.innerHTML = `
-    <div class="d-flex">
-      <div class="toast-body">${text}</div>
-      <button type="button" class="btn-close btn-close-white me-2 m-auto"
-              data-bs-dismiss="toast" aria-label="Close"></button>
-    </div>
-  `;
-
+  const flex = document.createElement("div");
+  flex.className = "d-flex";
+  const body = document.createElement("div");
+  body.className = "toast-body";
+  body.textContent = text;
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "btn-close btn-close-white me-2 m-auto";
+  close.dataset.bsDismiss = "toast";
+  close.setAttribute("aria-label", "Закрыть");
+  flex.append(body, close);
+  el.appendChild(flex);
   container.appendChild(el);
+
+  if (typeof bootstrap === "undefined") {
+    window.libraryToastFallback(el, variant);
+    return;
+  }
+
+  el.dataset.bsDelay = "5000";
   const t = new bootstrap.Toast(el);
   t.show();
   el.addEventListener("hidden.bs.toast", () => el.remove());
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  // server flash toasts
-  document.querySelectorAll(".toast").forEach((el) => new bootstrap.Toast(el).show());
+  // Без Bootstrap серверные уведомления уже оформлены в base.html.
+  document.querySelectorAll(".toast").forEach((el) => {
+    if (typeof bootstrap !== "undefined") new bootstrap.Toast(el).show();
+  });
 
-  // bootstrap validation
+  // Проверка формы, понятное сообщение браузера и защита от повторного
+  // нажатия. Серверная проверка дублей всё равно остаётся обязательной.
   document.querySelectorAll(".needs-validation").forEach((form) => {
     form.addEventListener("submit", (event) => {
       if (!form.checkValidity()) {
         event.preventDefault();
         event.stopPropagation();
+        form.classList.add("was-validated");
+        form.reportValidity();
+        return;
       }
+
       form.classList.add("was-validated");
+      const submitButton = event.submitter
+        || form.querySelector('button[type="submit"], input[type="submit"]');
+      if (submitButton) {
+        submitButton.disabled = true;
+        if (submitButton.tagName === "BUTTON") {
+          submitButton.textContent = "Сохранение…";
+        }
+      }
     });
   });
 
